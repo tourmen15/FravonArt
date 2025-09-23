@@ -1,0 +1,106 @@
+body {
+  font-family: 'Helvetica', sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #fefefe;
+  color: #333;
+}
+
+.app {
+  max-width: 1200px;
+  margin: auto;
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.header .logo {
+  font-weight: bold;
+  font-size: 32px;
+  color: #0ea5a4;
+  background: #ffd166;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.header .muted {
+  font-size: 14px;
+  color: #666;
+}
+
+.main {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.card {
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  flex: 1;
+  min-width: 300px;
+}
+
+.small { font-size: 14px; }
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #0ea5a4;
+  color: #fff;
+  font-weight: bold;
+}
+
+.btn.secondary {
+  background: #666;
+}
+
+.input {
+  width: 100%;
+  padding: 6px 8px;
+  margin: 4px 0;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.templates {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.templates .template {
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  background: #f3f3f3;
+}
+
+.templates .template.selected {
+  background: #0ea5a4;
+  color: #fff;
+}
+
+.preview {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.actions { margin-top: 16px; }
+
+textarea.input {
+  resize: none;
+}
