@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FravonArt - Social Media Studio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="logo">FA</div>
+      <div>
+        <h1>FravonArt - Social Media Studio</h1>
+        <div class="muted">Create platform-ready social posts in seconds. Apply brand, auto-resize, export or add to Canva.</div>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="left card">
+        <h2>Templates</h2>
+        <div id="templates" class="templates"></div>
+        <div class="note small">Pro templates locked - click Upgrade to unlock.</div>
+      </section>
+
+      <section class="right card">
+        <div class="controls">
+          <label>Brand name <input id="brandName" class="input" value="FravonArt"></label>
+          <label>Primary color <input id="brandPrimary" type="color" value="#0ea5a4"></label>
+          <label>Accent color <input id="brandAccent" type="color" value="#ffd166"></label>
+          <label>Text color <input id="brandText" type="color" value="#ffffff"></label>
+          <button id="applyBrand" class="btn">Apply Brand</button>
+        </div>
+
+        <div class="preview card small" id="previewWrap">
+          <div id="previewLabel">Preview (select template)</div>
+          <canvas id="preview" width="540" height="540"></canvas>
+        </div>
+
+        <div class="actions">
+          <select id="formatSelect" class="input">
+            <option value="insta">Instagram Post 1080x1080</option>
+            <option value="story">Instagram Story / TikTok 1080x1920</option>
+            <option value="pinterest">Pinterest 1000x1500</option>
+            <option value="fb">Facebook 1200x630</option>
+          </select>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="generateBtn" class="btn">Generate Preview</button>
+            <button id="generateAllBtn" class="btn secondary">Generate All Sizes (ZIP)</button>
+            <button id="sendCanvaBtn" class="btn secondary">Add to Canva</button>
+          </div>
+          <a id="downloadLink" class="btn secondary" style="display:inline-block;margin-top:8px">Download Image</a>
+        </div>
+
+        <div class="caption card small">
+          <h3>Caption & Hashtags</h3>
+          <textarea id="caption" rows="5" class="input"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button id="genCaption" class="btn">Generate Caption</button>
+            <button id="copyCaption" class="btn secondary">Copy</button>
+          </div>
+        </div>
+
+        <div class="marketing small">Pro tips: Use the Upgrade button to unlock premium templates and high-res export.</div>
+      </section>
+    </main>
+
+    <footer class="footer small">Powered by FravonArt - <a href="https://fravonart.com" target="_blank">fravonart.com</a></footer>
+  </div>
+
+  <!-- JSZip for ZIP export -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="templates.js"></script>
+  <script src="app.js"></script>
+
+  <!-- Canva SDK stub for local preview -->
+  <script>
+    if (!window.canva) {
+      window.canva = {
+        onReady: function(cb){ if(cb) cb(); },
+        addElement: function(opts){ console.log('canva.addElement stub', opts); return Promise.resolve({success:true}); }
+      };
+    }
+  </script>
+</body>
+</html>
