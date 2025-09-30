@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Journey Through an Endless Galaxy — 10s Infinite Zoom (1920x1080 @60FPS)</title>
+  <style>
+    :root{background:#000;color:#fff}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    .wrap{height:100%;display:flex;align-items:center;justify-content:center}
+    .stage{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+    canvas{background:#000;display:block;max-width:100%;height:auto;cursor:pointer}
+    .ui{position:absolute;left:16px;top:16px;display:flex;gap:8px;z-index:40}
+    button{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);color:#fff;padding:10px 14px;border-radius:8px;backdrop-filter:blur(6px);cursor:pointer}
+    button:active{transform:translateY(1px)}
+    .hint{position:absolute;right:16px;bottom:16px;color:rgba(255,255,255,0.6);font-size:13px}
+    .caption{position:absolute;left:16px;bottom:16px;color:rgba(255,255,255,0.5);font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="stage">
+      <canvas id="c" width="1920" height="1080" title="Click to toggle fullscreen"></canvas>
+
+      <div class="ui">
+        <button id="recBtn">Start Recording (10s)</button>
+        <button id="dlBtn" disabled>Download Last Recording</button>
+      </div>
+
+      <div class="caption">Click canvas to toggle fullscreen • R = Record • D = Download</div>
+      <div class="hint">Resolution locked 1920×1080 (canvas internal); scales responsively preserving 16:9</div>
+    </div>
+  </div>
+
+  <script>
+  /*
+    Journey Through an Endless Galaxy
+    Single-file production-ready HTML5 animation
+    - 1920x1080 internal resolution
+    - 60 FPS locked via canvas.captureStream(60) and requestAnimationFrame
+    - No external assets or libraries
+    - Recording via MediaRecorder for 10s (attempt mp4, fallback to webm)
+    - Click canvas to toggle fullscreen
+    - R to start/stop recording, D to download last recording
+
+    Implementation notes:
+    - Uses layered offscreen canvases to maintain performance.
+    - Infinite zoom simulated by exponential scale of layers + depth-based parallax.
+    - Nebula clouds produced procedurally via multi-octave value-noise-like function (fast).
+    - Stars are generated once per layer and recycled.
+    - Additive blending (globalCompositeOperation = 'lighter') used for glow effects.
+  */
+
+  (function(){
+    'use strict';
+
+    // Config
+    const INTERNAL_W = 1920;
+    const INTERNAL_H = 1080;
+    const FPS = 60;
+    const RECORD_DURATION = 10_000; // ms
+
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d', {alpha:false});
+
+    // Responsive size while preserving 16:9
+    function resizeCanvasToDisplay() {
+      const maxW = window.innerWidth;
+      const maxH = window.innerHeight;
+      const targetRatio = INTERNAL_W / INTERNAL_H;
+      let w = maxW, h = Math.round(w / targetRatio);
+      if (h > maxH) { h = maxH; w = Math.round(h * targetRatio); }
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+    }
+    window.addEventListener('resize', resizeCanvasToDisplay, {passive:true});
+    resizeCanvasToDisplay();
+
+    // Offscreen buffers for layers
+    function createBuffer(w, h) {
+      const b = document.createElement('canvas');
+      b.width = w; b.height = h;
+      return b;
+    }
+
+    // Utility: random in range
+    const rnd = (a,b)=> (a + Math.random()*(b-a));
+
+    // === Procedural Nebula Noise (fast, value-like noise) ===
+    // A tiny value-noise implementation that is fast and good-looking when warped and blended.
+    function makeNoise(w, h, seed=0){
+      // grid of random corner values
+      const gx = Math.ceil(w/64)+3;
+      const gy = Math.ceil(h/64)+3;
+      const grid = new Float32Array(gx*gy);
+      let s = 1 + seed*99999;
+      for(let i=0;i<grid.length;i++){
+        s = (s * 9301 + 49297) % 233280; // LCG
+        grid[i] = (s/233280) * 2 - 1;
+      }
+      function smoothstep(t){ return t*t*(3-2*t); }
+      return function(x,y){
+        const fx = x/64 + 1;
+        const fy = y/64 + 1;
+        const ix = Math.floor(fx);
+        const iy = Math.floor(fy);
+        const tx = smoothstep(fx-ix);
+        const ty = smoothstep(fy-iy);
+        const i00 = grid[ix + iy*gx];
+        const i10 = grid[(ix+1) + iy*gx];
+        const i01 = grid[ix + (iy+1)*gx];
+        const i11 = grid[(ix+1) + (iy+1)*gx];
+        const a = i00 + (i10 - i00)*tx;
+        const b = i01 + (i11 - i01)*tx;
+        return a + (b - a)*ty;
+      }
+    }
+
+    // Fractal noise using multiple octaves
+    function fBm(noiseFn, x,y, octaves=4, lacunarity=2, gain=0.5){
+      let amp = 1, freq = 1, sum = 0, max = 0;
+      for(let i=0;i<octaves;i++){
+        sum += amp * noiseFn(x*freq, y*freq);
+        max += amp;
+        amp *= gain; freq *= lacunarity;
+      }
+      return sum / max;
+    }
+
+    // === Starfield layers ===
+    function makeStarLayer(count, speedFactor, sizeRange, colorFunc){
+      const stars = new Array(count);
+      for(let i=0;i<count;i++){
+        stars[i] = {
+          x: Math.random()*INTERNAL_W*2 - INTERNAL_W/2,
+          y: Math.random()*INTERNAL_H*2 - INTERNAL_H/2,
+          z: Math.random(),
+          s: rnd(sizeRange[0], sizeRange[1]),
+          tw: Math.random()*0.5 + 0.5, // twinkle factor
+        };
+      }
+      return {stars, speedFactor, colorFunc};
+    }
+
+    // create layers: foreground, mid, far
+    const starLayers = [
+      makeStarLayer(700, 1.6, [0.6,2.4], (s)=>`rgba(255,240,220,${0.6 + 0.4*s})`),  // foreground
+      makeStarLayer(450, 1.0, [0.4,1.2], (s)=>`rgba(220,230,255,${0.45 + 0.35*s})`),  // mid
+      makeStarLayer(300, 0.55, [0.2,0.8], (s)=>`rgba(200,230,255,${0.25 + 0.25*s})`), // far
+    ];
+
+    // Pre-render star blobs into small canvas for performance
+    function makeStarSprites(){
+      const sprite = createBuffer(64,64);
+      const sctx = sprite.getContext('2d');
+      const grad = sctx.createRadialGradient(32,32,0,32,32,32);
+      grad.addColorStop(0,'rgba(255,255,255,1)');
+      grad.addColorStop(0.3,'rgba(255,255,255,0.6)');
+      grad.addColorStop(1,'rgba(255,255,255,0)');
+      sctx.fillStyle = grad; sctx.fillRect(0,0,64,64);
+      return sprite;
+    }
+    const starSprite = makeStarSprites();
+
+    // === Nebula layers ===
+    const nebulaLayers = [];
+    const nebulaCount = 2; // two layered nebulae for depth
+    for(let i=0;i<nebulaCount;i++){
+      const buf = createBuffer(INTERNAL_W, INTERNAL_H);
+      nebulaLayers.push({buf, noise: makeNoise(INTERNAL_W, INTERNAL_H, i+1), speed: 0.02 + i*0.01, tint: i===0? {a:0.7,colors:['#7C4DFF','#00D4FF','#FF7ACB']} : {a:0.45, colors:['#FF9B4F','#7CE7C1','#5D63FF']}});
+    }
+
+    // === Galaxy Core parameters ===
+    const core = {x:INTERNAL_W/2, y:INTERNAL_H/2, radius:260, glow:1.0};
+
+    // Animation state
+    let t0 = performance.now();
+    let lastFrame = t0;
+    let running = true;
+
+    // Zoom state — simulate infinite zoom by continuously increasing a scale value
+    let zoom = 1.0; // 1 -> baseline; increase to zoom in
+    const zoomSpeed = Math.pow(2, 1/7); // per second? We'll base per second multiplier below
+
+    // Draw one frame into main canvas
+    function render(now){
+      if(!running) return;
+      const dt = Math.min(100, now - lastFrame) / 1000; // seconds (cap)
+      lastFrame = now;
+
+      // advance zoom smoothly (exponential)
+      const perSecFactor = Math.pow(1.0036, dt*FPS); // tuned for hypnotic but smooth zoom
+      zoom *= Math.pow(1.0036, dt * 60); // steady slight exponential increase
+
+      // clear
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0,0,INTERNAL_W,INTERNAL_H);
+
+      // draw nebula layers (procedural) - use additive blending
+      ctx.globalCompositeOperation = 'lighter';
+      nebulaLayers.forEach((nl, idx)=>{
+        const bctx = nl.buf.getContext('2d');
+        // We'll update nebula texture slowly: regenerate into buffer on every frame but it's cheap due to small work
+        const time = now * 0.00012 * (1 + idx*0.6);
+        const imageData = bctx.getImageData(0,0,INTERNAL_W,INTERNAL_H);
+        const data = imageData.data;
+        // Iterate pixels but step by 2 for speed and fill blocks — keeps effect soft
+        for(let y=0;y<INTERNAL_H;y+=2){
+          for(let x=0;x<INTERNAL_W;x+=2){
+            const v = fBm(nl.noise, (x + time*200) * 0.6, (y + time*120) * 0.6, 5);
+            // warp for veins
+            const warp = Math.sin((x*0.0012 + time) * (0.8 + idx*0.2)) * 0.2;
+            const vv = Math.min(1, Math.max(0, (v + warp + 0.5)/1.4));
+            const px = (y*INTERNAL_W + x) * 4;
+            // gradient tint across canvas vertically for variety
+            const mix = y/INTERNAL_H;
+            // map to color palette
+            const colA = nl.tint.colors[0];
+            const colB = nl.tint.colors[1];
+            const colC = nl.tint.colors[2];
+            // simple palette blend
+            const ca = hexToRgb(colA), cb = hexToRgb(colB), cc = hexToRgb(colC);
+            const r = (ca.r*(1-mix)*0.6 + cb.r*mix*0.6 + cc.r*vv*0.6);
+            const g = (ca.g*(1-mix)*0.6 + cb.g*mix*0.6 + cc.g*vv*0.6);
+            const b = (ca.b*(1-mix)*0.6 + cb.b*mix*0.6 + cc.b*vv*0.6);
+            const a = Math.pow(vv, 1.8) * nl.tint.a * 255;
+            for(let yy=0; yy<2; yy++){
+              for(let xx=0; xx<2; xx++){
+                const pxi = ((y+yy)*INTERNAL_W + (x+xx)) * 4;
+                data[pxi] = Math.min(255, data[pxi] + r);
+                data[pxi+1] = Math.min(255, data[pxi+1] + g);
+                data[pxi+2] = Math.min(255, data[pxi+2] + b);
+                data[pxi+3] = Math.min(255, data[pxi+3] + a);
+              }
+            }
+          }
+        }
+        bctx.putImageData(imageData, 0, 0);
+
+        // Draw buffer with scaling to simulate parallax and zoom
+        const layerScale = Math.pow(zoom, 0.85 + idx*0.12);
+        const sx = INTERNAL_W/2 - (INTERNAL_W/2) * layerScale;
+        const sy = INTERNAL_H/2 - (INTERNAL_H/2) * layerScale;
+        ctx.save();
+        ctx.globalAlpha = 1.0;
+        ctx.drawImage(nl.buf, sx, sy, INTERNAL_W * layerScale, INTERNAL_H * layerScale);
+        ctx.restore();
+      });
+
+      // draw star layers
+      ctx.globalCompositeOperation = 'lighter';
+      starLayers.forEach((layer, li)=>{
+        const speed = layer.speedFactor;
+        const depth = 1/(li+1);
+        for(let i=0;i<layer.stars.length;i++){
+          const s = layer.stars[i];
+          // move stars slightly to simulate motion; wrap them
+          s.y += (0.6 + s.z*1.4) * speed * (1/60) * (zoom - 0.99) * 60 * 0.08;
+          s.x += Math.sin((i + zoom) * 0.0007) * 0.3 * speed;
+          // twinkle
+          const twinkle = 0.6 + 0.4*Math.sin((performance.now()*0.002 + i) * s.tw);
+
+          // transform position based on zoom and depth
+          const sx = (INTERNAL_W/2) + (s.x - INTERNAL_W/2) * Math.pow(zoom, depth*0.6);
+          const sy = (INTERNAL_H/2) + (s.y - INTERNAL_H/2) * Math.pow(zoom, depth*0.6);
+
+          // recycle if out of view
+          if(sy > INTERNAL_H*1.5 || sx < -INTERNAL_W || sx > INTERNAL_W*2){
+            s.x = Math.random()*INTERNAL_W*2 - INTERNAL_W/2;
+            s.y = -Math.random()*INTERNAL_H*0.2;
+          }
+
+          const size = s.s * (1 + (1-depth)*0.8) * Math.min(3, Math.pow(zoom, 0.12));
+          ctx.globalAlpha = Math.min(1, twinkle);
+          ctx.drawImage(starSprite, sx - size/2, sy - size/2, size, size);
+        }
+      });
+
+      // Galaxy core glow and vortex
+      ctx.globalCompositeOperation = 'lighter';
+      // radial glow
+      const gradient = ctx.createRadialGradient(core.x, core.y, 0, core.x, core.y, core.radius* (1 + Math.log(zoom)*0.2));
+      gradient.addColorStop(0,'rgba(255,255,255,1)');
+      gradient.addColorStop(0.15,'rgba(255,220,200,0.8)');
+      gradient.addColorStop(0.35,'rgba(200,120,255,0.18)');
+      gradient.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(core.x, core.y, core.radius * (1 + Math.log(zoom)*0.2), 0, Math.PI*2);
+      ctx.fill();
+
+      // swirling vortex lines
+      ctx.save();
+      ctx.translate(core.x, core.y);
+      const swirlCount = 28;
+      for(let s=0;s<swirlCount;s++){
+        const ang = (now*0.0001)*(1 + s*0.02) + s*0.45;
+        ctx.globalAlpha = 0.08 + 0.12*Math.sin(now*0.001 + s);
+        ctx.beginPath();
+        for(let r=20;r<core.radius*1.4;r+=6){
+          const a = ang + r*0.01;
+          const x = Math.cos(a) * r * (0.4 + 0.6*Math.sin(r*0.04 + now*0.0006));
+          const y = Math.sin(a) * r * (0.4 + 0.6*Math.cos(r*0.038 + now*0.0004));
+          if(r===20) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.strokeStyle = 'rgba(255,200,240,0.08)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // central flare
+      ctx.globalCompositeOperation = 'screen';
+      ctx.globalAlpha = 0.9;
+      const flareGrad = ctx.createRadialGradient(core.x, core.y, 0, core.x, core.y, core.radius*0.8);
+      flareGrad.addColorStop(0,'rgba(255,255,220,0.9)');
+      flareGrad.addColorStop(0.5,'rgba(255,180,80,0.18)');
+      flareGrad.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle = flareGrad;
+      ctx.beginPath();
+      ctx.ellipse(core.x, core.y, core.radius*0.7, core.radius*0.3, 0, 0, Math.PI*2);
+      ctx.fill();
+
+      // subtle vignette + color grade
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.35;
+      const vin = ctx.createRadialGradient(INTERNAL_W/2, INTERNAL_H/2, INTERNAL_W*0.2, INTERNAL_W/2, INTERNAL_H/2, Math.max(INTERNAL_W,INTERNAL_H));
+      vin.addColorStop(0,'rgba(0,0,0,0)');
+      vin.addColorStop(1,'rgba(0,0,0,0.45)');
+      ctx.fillStyle = vin; ctx.fillRect(0,0,INTERNAL_W,INTERNAL_H);
+
+      // reset composite
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1.0;
+
+      // small UI overlay (time) — optional minimal HUD
+      //ctx.fillStyle = 'rgba(255,255,255,0.02)'; ctx.fillRect(0,0,200,28);
+
+      // request next
+      requestAnimationFrame(render);
+    }
+
+    // helper: hex to rgb
+    function hexToRgb(hex){
+      const h = hex.replace('#','');
+      const bigint = parseInt(h,16);
+      return {r:(bigint>>16)&255, g:(bigint>>8)&255, b:bigint&255};
+    }
+
+    // start loop
+    requestAnimationFrame((now)=>{ lastFrame = now; requestAnimationFrame(render); });
+
+    // === Recording logic ===
+    const recBtn = document.getElementById('recBtn');
+    const dlBtn = document.getElementById('dlBtn');
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let lastBlob = null;
+    let recordingTimeout = null;
+    let isRecording = false;
+
+    function startRecording(){
+      if(isRecording) return stopRecording();
+
+      // try MP4 first (some browsers won't allow)
+      let mime = 'video/mp4';
+      if(!MediaRecorder.isTypeSupported(mime)){
+        mime = 'video/webm;codecs=vp9';
+        if(!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+      }
+
+      const stream = canvas.captureStream(FPS);
+      try{
+        mediaRecorder = new MediaRecorder(stream, {mimeType: mime});
+      }catch(e){
+        console.warn('MediaRecorder failed with mime', mime, e);
+        try{ mediaRecorder = new MediaRecorder(stream); } catch(err){ alert('Recording not supported in this browser.'); return; }
+      }
+
+      recordedChunks = [];
+      mediaRecorder.ondataavailable = (e)=>{ if(e.data && e.data.size) recordedChunks.push(e.data); };
+      mediaRecorder.onstop = ()=>{
+        lastBlob = new Blob(recordedChunks, {type: mediaRecorder.mimeType || 'video/webm'});
+        dlBtn.disabled = false;
+      };
+
+      mediaRecorder.start();
+      isRecording = true;
+      recBtn.textContent = 'Recording...';
+      recBtn.style.background = 'linear-gradient(90deg, rgba(255,60,60,0.14), rgba(255,120,120,0.08))';
+
+      // auto-stop after EXACTLY RECORD_DURATION
+      recordingTimeout = setTimeout(()=>{ stopRecording(); }, RECORD_DURATION);
+    }
+
+    function stopRecording(){
+      if(!isRecording) return;
+      if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+      isRecording = false;
+      recBtn.textContent = 'Start Recording (10s)';
+      recBtn.style.background = '';
+      if(recordingTimeout){ clearTimeout(recordingTimeout); recordingTimeout = null; }
+    }
+
+    recBtn.addEventListener('click', ()=>{
+      if(!isRecording) startRecording(); else stopRecording();
+    });
+
+    dlBtn.addEventListener('click', ()=>{
+      if(!lastBlob) return;
+      const ext = lastBlob.type.includes('mp4') ? 'mp4' : 'webm';
+      const a = document.createElement('a');
+      const url = URL.createObjectURL(lastBlob);
+      a.href = url; a.download = `Journey_Through_an_Endless_Galaxy.${ext}`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    });
+
+    // Keyboard shortcuts
+    window.addEventListener('keydown', (e)=>{
+      if(e.key === 'r' || e.key === 'R'){
+        if(!isRecording) startRecording(); else stopRecording();
+      }
+      if(e.key === 'd' || e.key === 'D'){
+        if(!lastBlob) return;
+        dlBtn.click();
+      }
+    });
+
+    // Fullscreen toggle on canvas click
+    canvas.addEventListener('click', ()=>{
+      if(document.fullscreenElement) document.exitFullscreen(); else canvas.requestFullscreen().catch(()=>{});
+    });
+
+    // Prevent touch scrolling and support tapping
+    canvas.addEventListener('touchstart', (e)=>{ e.preventDefault(); if(!document.fullscreenElement) canvas.requestFullscreen().catch(()=>{}); }, {passive:false});
+
+    // initial responsive fit
+    resizeCanvasToDisplay();
+
+    // expose a safe stop function when unloading
+    window.addEventListener('beforeunload', ()=>{ if(isRecording) stopRecording(); });
+
+    // Helpful compatibility notes in console
+    console.log('Journey Through an Endless Galaxy initialized — recording mime support check:', MediaRecorder && MediaRecorder.isTypeSupported ? 'supported' : 'unknown');
+
+  })();
+  </script>
+</body>
+</html>
