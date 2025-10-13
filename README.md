@@ -1,16 +1,8 @@
-# FravonArt - Social Media Content Creation App
+# Architectural Animator Pro - Backend
 
-This is a **Netlify-ready static app** for creating social media posts quickly.  
-Supports templates, branding, resizing, captions, and Canva integration (stub).
+## Installation
 
-## How to Deploy
-1. Upload all files to a GitHub repository.
-2. Enable GitHub Pages in Settings → Pages → Branch `main` → Folder `/`.
-3. Copy the GitHub Pages URL into Canva Developer → Development URL.
-
-## Features
-- Multi-platform templates (Instagram, TikTok, Facebook, Pinterest)
-- Brand colors and text applied dynamically
-- Canvas preview
-- Generate captions & copy
-- Export images or ZIP of multiple sizes
+1. Create a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
