@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Salah Quiz #4</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salah Quiz #4 (1080p)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
@@ -24,6 +24,7 @@
             height: 100%;
             width: 100%;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             background-color: #111;
@@ -31,158 +32,35 @@
             overflow: hidden;
         }
 
-        #container {
+        #canvas-container {
             width: 100%;
-            height: 100%;
-            max-width: 420px; /* Common mobile width */
-            max-height: 840px; /* For desktop viewing */
-            aspect-ratio: 9 / 16;
-            position: relative;
+            height: 90vh; /* Adjust height for controls */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        canvas {
             background: linear-gradient(160deg, var(--bg-gradient-start), var(--bg-gradient-end));
-            overflow: hidden;
+            max-width: 100%;
+            max-height: 100%;
+            aspect-ratio: 9 / 16;
             box-shadow: 0 0 30px rgba(0,0,0,0.5);
             border-radius: 20px;
         }
 
-        #background-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
-
-        .screen {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: var(--light-cream);
-            text-align: center;
-            z-index: 2;
-            padding: 20px;
-            box-sizing: border-box;
-            opacity: 0;
-            transform: scale(1.05);
-            transition: opacity 1s ease-in-out, transform 1s ease-in-out;
-        }
-
-        .screen.visible {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        #intro-screen h1 {
-            font-family: 'Cinzel', serif;
-            font-size: 3.5rem;
-            color: var(--gold);
-            text-shadow: 0 0 15px var(--glow-color);
-            margin: 0;
-        }
-        
-        #intro-screen h2 {
-            font-family: 'Poppins', sans-serif;
-            font-size: 1.2rem;
-            color: var(--soft-gold);
-            letter-spacing: 2px;
-            font-weight: 400;
-        }
-
-        #quiz-screen {
-            justify-content: flex-start;
-            padding-top: 15%;
-        }
-        
-        .quiz-content {
-            width: 100%;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-        }
-
-        .quiz-content.visible {
-            opacity: 1;
-        }
-
-        #question-text {
-            font-size: 1.6rem;
-            font-weight: 600;
-            margin-bottom: 30px;
-            min-height: 150px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--light-cream);
-        }
-
-        #options-container {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .option {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid var(--soft-gold);
-            padding: 15px;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
-            opacity: 0;
-            transform: translateY(20px);
-        }
-
-        .option.correct {
-            animation: correct-glow 1.5s ease-in-out forwards;
-        }
-        
-        @keyframes correct-glow {
-            0% {
-                background: rgba(255, 255, 255, 0.1);
-                box-shadow: none;
-            }
-            50% {
-                background: rgba(144, 238, 144, 0.8);
-                color: var(--bg-dark-green);
-                box-shadow: 0 0 20px 5px rgba(144, 238, 144, 0.7);
-                border-color: lightgreen;
-            }
-            100% {
-                 background: rgba(144, 238, 144, 0.8);
-                color: var(--bg-dark-green);
-                box-shadow: 0 0 20px 5px rgba(144, 238, 144, 0.7);
-                border-color: lightgreen;
-            }
-        }
-        
-        /* Entrance animations for options */
-        .option.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        
         #controls {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
+            padding: 20px;
             display: flex;
-            gap: 10px;
+            gap: 15px;
+            z-index: 10;
         }
 
         button {
             background-color: var(--gold);
             color: var(--bg-dark-green);
             border: none;
-            padding: 10px 20px;
+            padding: 12px 25px;
             border-radius: 8px;
             font-family: 'Poppins', sans-serif;
             font-weight: 600;
@@ -199,60 +77,31 @@
         
         button:disabled {
             background-color: #888;
+            color: #ccc;
             cursor: not-allowed;
             transform: none;
         }
         
         #status {
-            position: absolute;
-            top: 20px;
-            width: 100%;
-            text-align: center;
             color: white;
-            z-index: 11;
             font-size: 1rem;
             text-shadow: 1px 1px 3px black;
+            height: 20px; /* Reserve space */
+            margin-bottom: 10px;
         }
-
     </style>
 </head>
 <body>
-    <div id="container">
-        <canvas id="background-canvas"></canvas>
-
-        <div id="intro-screen" class="screen">
-            <h2>Bismillah</h2>
-            <h1>Salah Quiz</h1>
-            <h2>#4</h2>
-        </div>
-
-        <div id="quiz-screen" class="screen">
-            <div id="quiz-content" class="quiz-content">
-                <div id="question-text"></div>
-                <div id="options-container">
-                    <div class="option" id="option-0"></div>
-                    <div class="option" id="option-1"></div>
-                    <div class="option" id="option-2"></div>
-                    <div class="option" id="option-3"></div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="outro-screen" class="screen">
-            <h1>JazakAllah Khair</h1>
-            <h2>Quiz Complete</h2>
-        </div>
-        
-        <div id="status"></div>
+    <div id="status"></div>
+    <div id="canvas-container">
+        <canvas id="animation-canvas" width="1080" height="1920"></canvas>
     </div>
     
     <div id="controls">
         <button id="start-btn">Start Animation</button>
-        <button id="download-btn">Download Video</button>
+        <button id="download-btn">Download Video (1080x1920)</button>
     </div>
 
-    <!-- Tone.js for sound synthesis -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <!-- CCapture.js for video recording -->
     <script src="https://unpkg.com/ccapture.js@1.1.0/build/CCapture.all.min.js"></script>
 
@@ -289,288 +138,272 @@
         const startBtn = document.getElementById('start-btn');
         const downloadBtn = document.getElementById('download-btn');
         const statusEl = document.getElementById('status');
+        const canvas = document.getElementById('animation-canvas');
+        const ctx = canvas.getContext('2d');
         
-        const introScreen = document.getElementById('intro-screen');
-        const quizScreen = document.getElementById('quiz-screen');
-        const outroScreen = document.getElementById('outro-screen');
-        const quizContent = document.getElementById('quiz-content');
-
-        const questionText = document.getElementById('question-text');
-        const optionsContainer = document.getElementById('options-container');
-        const optionElements = [
-            document.getElementById('option-0'),
-            document.getElementById('option-1'),
-            document.getElementById('option-2'),
-            document.getElementById('option-3')
-        ];
-        
+        // --- Animation State ---
         let isAnimating = false;
         let capturer = null;
-
-        // --- Audio Engine ---
-        let synth, musicLoop, chime;
-        
-        async function setupAudio() {
-            await Tone.start();
-            // Intro Chime
-            chime = new Tone.Synth({
-                oscillator: { type: 'sine' },
-                envelope: { attack: 0.01, decay: 1, sustain: 0.1, release: 1 }
-            }).toDestination();
-
-            // Background Oud-like music
-            synth = new Tone.PluckSynth({
-                attackNoise: 0.5,
-                dampening: 4000,
-                resonance: 0.8
-            }).toDestination();
-            synth.volume.value = -18;
-            
-            const notes = ["G3", "A3", "C4", "D4", "G4", "C4", "A3"];
-            let noteIndex = 0;
-            musicLoop = new Tone.Loop(time => {
-                synth.triggerAttack(notes[noteIndex % notes.length], time);
-                noteIndex++;
-            }, "2n").start(0);
-            
-            Tone.Transport.bpm.value = 70;
-        }
-
-        // --- Voice Narration ---
-        const speaker = window.speechSynthesis;
-        function speak(text) {
-            return new Promise(resolve => {
-                if (speaker.speaking) {
-                    console.error("SpeechSynthesis is already speaking.");
-                    resolve();
-                    return;
-                }
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.pitch = 1;
-                utterance.rate = 0.9;
-                utterance.volume = 1;
-                utterance.onend = resolve;
-                utterance.onerror = (e) => {
-                    console.error("SpeechSynthesis error:", e);
-                    resolve(); // Resolve anyway to not break the chain
-                };
-                speaker.speak(utterance);
-            });
-        }
-        
-        function delay(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
-        
-        // --- Animation Sequence ---
-        async function runAnimationSequence() {
-            isAnimating = true;
-            startBtn.disabled = true;
-            downloadBtn.disabled = true;
-            
-            // Reset UI
-            introScreen.classList.remove('visible');
-            quizScreen.classList.remove('visible');
-            outroScreen.classList.remove('visible');
-            quizContent.classList.remove('visible');
-            
-            // 1. Intro (4 seconds)
-            introScreen.classList.add('visible');
-            chime.triggerAttackRelease("C5", "2s");
-            await delay(4000);
-            introScreen.classList.remove('visible');
-            await delay(1000);
-
-            // 2. Questions (8 seconds each * 5 = 40 seconds)
-            quizScreen.classList.add('visible');
-
-            for (let i = 0; i < quizData.length; i++) {
-                await displayQuestion(i);
-            }
-            
-            // 3. Outro (1 second)
-            quizScreen.classList.remove('visible');
-            await delay(1000);
-            outroScreen.classList.add('visible');
-            await delay(4000); // Hold outro for a bit
-            outroScreen.classList.remove('visible');
-
-            isAnimating = false;
-            startBtn.disabled = false;
-            downloadBtn.disabled = false;
-            
-            if (capturer) {
-                statusEl.textContent = 'Finalizing video... please wait.';
-                capturer.stop();
-                capturer.save();
-                capturer = null;
-                statusEl.textContent = 'Video saved!';
-                setTimeout(() => statusEl.textContent = '', 3000);
-            }
-            Tone.Transport.stop();
-        }
-        
-        async function displayQuestion(index) {
-            const item = quizData[index];
-            
-            // Reset options
-            optionElements.forEach(opt => {
-                opt.classList.remove('show', 'correct');
-            });
-            
-            questionText.textContent = item.question;
-            item.options.forEach((optText, i) => {
-                optionElements[i].textContent = optText;
-            });
-            
-            quizContent.classList.add('visible');
-            await speak(item.question);
-            await delay(500);
-            
-            for (let i = 0; i < item.options.length; i++) {
-                optionElements[i].style.transitionDelay = `${i * 0.2}s`;
-                optionElements[i].classList.add('show');
-                await speak(`${String.fromCharCode(65 + i)}. ${item.options[i]}`);
-                await delay(100);
-            }
-            
-            await delay(1500); // Pause for thought
-            
-            optionElements[item.answer].classList.add('correct');
-            await speak(`The correct answer is. ${item.options[item.answer]}`);
-            
-            await delay(2000); // Let correct answer sink in
-            
-            quizContent.classList.remove('visible');
-            await delay(500);
-        }
-
-        // --- Canvas Background Animation ---
-        const canvas = document.getElementById('background-canvas');
-        const ctx = canvas.getContext('2d');
+        let startTime = 0;
         let particles = [];
-        let containerRect;
+        let animationFrameId;
+
+        const W = canvas.width;
+        const H = canvas.height;
+
+        // --- Easing function ---
+        const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
         
-        function resizeCanvas() {
-            containerRect = canvas.getBoundingClientRect();
-            canvas.width = containerRect.width;
-            canvas.height = containerRect.height;
+        // --- Text Wrapping Helper ---
+        function wrapText(text, x, y, maxWidth, lineHeight) {
+            const words = text.split(' ');
+            let line = '';
+            let testY = y;
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                const testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) {
+                    ctx.fillText(line, x, testY);
+                    line = words[n] + ' ';
+                    testY += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line, x, testY);
         }
 
+        // --- Main Animation Loop ---
+        function animateLoop(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const elapsed = (timestamp - startTime) / 1000; // in seconds
+
+            // Clear and draw background
+            ctx.clearRect(0, 0, W, H);
+            const gradient = ctx.createLinearGradient(0, 0, W, H);
+            gradient.addColorStop(0, '#024b30');
+            gradient.addColorStop(1, '#002215');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, W, H);
+            
+            drawMosque();
+            drawAndUpdateParticles();
+
+            // Timeline logic
+            if (elapsed < 4.0) { // 0-4s: Intro
+                const progress = easeOutCubic(elapsed / 4.0);
+                ctx.globalAlpha = progress;
+                ctx.fillStyle = '#FFD700';
+                ctx.textAlign = 'center';
+                
+                ctx.font = "70px 'Poppins'";
+                ctx.fillText("Bismillah", W / 2, H * 0.35 + (50 * (1-progress)));
+                
+                ctx.font = "150px 'Cinzel'";
+                ctx.shadowColor = 'rgba(255, 215, 0, 0.7)';
+                ctx.shadowBlur = 20;
+                ctx.fillText("Salah Quiz", W / 2, H * 0.5 + (50 * (1-progress)));
+                ctx.shadowBlur = 0;
+                
+                ctx.font = "80px 'Poppins'";
+                ctx.fillText("#4", W / 2, H * 0.6 + (50 * (1-progress)));
+
+            } else if (elapsed < 42.5) { // 4s-42.5s: Questions (38.5s total -> 7.7s per question)
+                ctx.globalAlpha = 1.0;
+                const questionTime = elapsed - 4.0;
+                const questionIndex = Math.floor(questionTime / 7.7);
+                const timeInQuestion = questionTime % 7.7;
+                
+                if (questionIndex < quizData.length) {
+                    drawQuestion(quizData[questionIndex], timeInQuestion);
+                }
+            } else if (elapsed < 45.0) { // 42.5s-45s: Outro
+                const progress = easeOutCubic((elapsed - 42.5) / 2.5);
+                ctx.globalAlpha = progress;
+                ctx.fillStyle = '#f5e6a8';
+                ctx.textAlign = 'center';
+
+                ctx.font = "120px 'Cinzel'";
+                ctx.fillText("JazakAllah Khair", W / 2, H * 0.45);
+                
+                ctx.font = "80px 'Poppins'";
+                ctx.fillText("Quiz Complete", W / 2, H * 0.55);
+
+            } else { // Animation finished
+                stopAnimation();
+                return;
+            }
+
+            if (capturer) {
+                capturer.capture(canvas);
+            }
+            animationFrameId = requestAnimationFrame(animateLoop);
+        }
+
+        function drawQuestion(item, time) {
+             const questionProgress = Math.min(1, time / 1.0); // 1s to fade in
+             const optionsProgressStart = 1.5;
+             const revealTime = 5.5;
+
+             // Draw Question Text
+             ctx.globalAlpha = easeOutCubic(questionProgress);
+             ctx.fillStyle = '#F5F5DC';
+             ctx.textAlign = 'center';
+             ctx.font = "72px 'Poppins'";
+             wrapText(item.question, W / 2, H * 0.25, W * 0.85, 90);
+
+             // Draw Options
+             for (let i = 0; i < item.options.length; i++) {
+                 const optionDelay = optionsProgressStart + i * 0.5;
+                 const optionProgress = Math.min(1, Math.max(0, (time - optionDelay) / 0.8));
+                 
+                 const isCorrect = (i === item.answer);
+                 const shouldReveal = time >= revealTime;
+
+                 let fillStyle = 'rgba(255, 255, 255, 0.1)';
+                 let strokeStyle = '#f5e6a8';
+                 let textColor = '#F5F5DC';
+
+                 if (shouldReveal && isCorrect) {
+                     const revealProgress = Math.min(1, (time - revealTime) / 1.5);
+                     const glowAlpha = 0.3 + (0.5 * Math.sin(revealProgress * Math.PI));
+                     fillStyle = `rgba(144, 238, 144, ${0.4 + 0.4 * revealProgress})`;
+                     strokeStyle = 'lightgreen';
+                     textColor = '#013220';
+                     ctx.shadowColor = `rgba(144, 238, 144, ${glowAlpha})`;
+                     ctx.shadowBlur = 30;
+                 }
+                 
+                 ctx.globalAlpha = easeOutCubic(optionProgress);
+                 
+                 const boxHeight = 150;
+                 const boxY = H * 0.45 + i * (boxHeight + 30);
+                 const boxX = W * 0.1;
+                 const boxWidth = W * 0.8;
+
+                 ctx.fillStyle = fillStyle;
+                 ctx.strokeStyle = strokeStyle;
+                 ctx.lineWidth = 3;
+                 
+                 // Rounded rectangle
+                 ctx.beginPath();
+                 ctx.moveTo(boxX + 20, boxY);
+                 ctx.lineTo(boxX + boxWidth - 20, boxY);
+                 ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + 20);
+                 ctx.lineTo(boxX + boxWidth, boxY + boxHeight - 20);
+                 ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - 20, boxY + boxHeight);
+                 ctx.lineTo(boxX + 20, boxY + boxHeight);
+                 ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - 20);
+                 ctx.lineTo(boxX, boxY + 20);
+                 ctx.quadraticCurveTo(boxX, boxY, boxX + 20, boxY);
+                 ctx.closePath();
+                 
+                 ctx.fill();
+                 ctx.stroke();
+
+                 ctx.shadowBlur = 0; // Reset shadow for text
+
+                 ctx.fillStyle = textColor;
+                 ctx.font = "52px 'Poppins'";
+                 ctx.textAlign = 'left';
+                 wrapText(item.options[i], boxX + 40, boxY + (boxHeight/2) - (item.options[i].includes(' ') ? 26 : 0) + 26, boxWidth - 80, 60);
+             }
+             ctx.globalAlpha = 1.0;
+        }
+
+        // --- Background helpers ---
         function createParticles() {
             particles = [];
-            let particleCount = 50;
-            for (let i = 0; i < particleCount; i++) {
+            for (let i = 0; i < 50; i++) {
                 particles.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    size: Math.random() * 2 + 1,
-                    speedX: (Math.random() * 0.4 - 0.2),
-                    speedY: (Math.random() * 0.4 - 0.2),
+                    x: Math.random() * W, y: Math.random() * H,
+                    size: Math.random() * 3 + 2,
+                    speedX: (Math.random() * 0.4 - 0.2), speedY: (Math.random() * 0.4 - 0.2),
                 });
             }
         }
-
-        function animateParticles() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw mosque silhouette at the bottom
-            drawMosque();
-
+        function drawAndUpdateParticles() {
             particles.forEach(p => {
-                p.x += p.speedX;
-                p.y += p.speedY;
-
-                if (p.x < 0 || p.x > canvas.width) p.speedX *= -1;
-                if (p.y < 0 || p.y > canvas.height) p.speedY *= -1;
-
+                p.x += p.speedX; p.y += p.speedY;
+                if (p.x < 0 || p.x > W) p.speedX *= -1;
+                if (p.y < 0 || p.y > H) p.speedY *= -1;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(245, 230, 168, 0.5)';
                 ctx.fill();
             });
-            
-            if (isAnimating && capturer) {
-                 capturer.capture(canvas);
-            }
-
-            requestAnimationFrame(animateParticles);
         }
-        
         function drawMosque() {
-            const w = canvas.width;
-            const h = canvas.height;
-            const baseY = h * 0.95;
-            
+            const baseY = H * 0.95;
             ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
             ctx.strokeStyle = 'rgba(255, 215, 0, 0.2)';
-            ctx.lineWidth = 1;
-
-            // Main dome
+            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(w * 0.3, baseY);
-            ctx.quadraticCurveTo(w * 0.5, h * 0.75, w * 0.7, baseY);
+            ctx.moveTo(W * 0.3, baseY);
+            ctx.quadraticCurveTo(W * 0.5, H * 0.75, W * 0.7, baseY);
             ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            // Left minaret
-            ctx.fillRect(w * 0.2, h * 0.8, w * 0.05, h * 0.15);
-            ctx.beginPath();
-            ctx.moveTo(w * 0.19, h*0.8);
-            ctx.quadraticCurveTo(w*0.225, h*0.75, w*0.26, h*0.8);
-            ctx.fill();
-            
-            // Right minaret
-            ctx.fillRect(w * 0.75, h * 0.8, w * 0.05, h * 0.15);
-            ctx.beginPath();
-            ctx.moveTo(w * 0.74, h*0.8);
-            ctx.quadraticCurveTo(w*0.775, h*0.75, w*0.81, h*0.8);
-            ctx.fill();
+            ctx.fill(); ctx.stroke();
+            ctx.fillRect(W * 0.2, H * 0.8, W * 0.05, H * 0.15);
+            ctx.beginPath(); ctx.moveTo(W * 0.19, H*0.8); ctx.quadraticCurveTo(W*0.225, H*0.75, W*0.26, H*0.8); ctx.fill();
+            ctx.fillRect(W * 0.75, H * 0.8, W * 0.05, H * 0.15);
+            ctx.beginPath(); ctx.moveTo(W * 0.74, H*0.8); ctx.quadraticCurveTo(W*0.775, H*0.75, W*0.81, H*0.8); ctx.fill();
         }
-        
-        // --- Event Listeners ---
-        startBtn.addEventListener('click', async () => {
+
+        // --- Control Functions ---
+        function startAnimation(isRecording = false) {
             if (isAnimating) return;
-            if (Tone.context.state !== 'running') {
-                await setupAudio();
+            isAnimating = true;
+            startTime = null;
+            startBtn.disabled = true;
+            downloadBtn.disabled = true;
+
+            if (isRecording) {
+                 capturer = new CCapture({ format: 'webm', framerate: 30, quality: 95, verbose: false });
+                 capturer.start();
+                 statusEl.textContent = 'Recording video... please wait.';
+            } else {
+                 statusEl.textContent = 'Animation playing...';
             }
-            Tone.Transport.start();
-            runAnimationSequence();
-        });
+            
+            animationFrameId = requestAnimationFrame(animateLoop);
+        }
+
+        function stopAnimation() {
+            cancelAnimationFrame(animationFrameId);
+            isAnimating = false;
+            startBtn.disabled = false;
+            downloadBtn.disabled = false;
+            statusEl.textContent = 'Animation finished.';
+
+            if (capturer) {
+                statusEl.textContent = 'Finalizing video...';
+                capturer.stop();
+                capturer.save();
+                capturer = null;
+                setTimeout(() => { statusEl.textContent = 'Video saved!'; }, 1000);
+            }
+             setTimeout(() => { if(!isAnimating) statusEl.textContent = ''; }, 4000);
+        }
+
+        startBtn.addEventListener('click', () => startAnimation(false));
+        downloadBtn.addEventListener('click', () => startAnimation(true));
         
-        downloadBtn.addEventListener('click', async () => {
-             if (isAnimating) return;
-             
-             statusEl.textContent = 'Starting recording...';
-             capturer = new CCapture({
-                 format: 'webm',
-                 framerate: 30,
-                 verbose: false,
-                 quality: 90
-             });
-             capturer.start();
-
-            if (Tone.context.state !== 'running') {
-                await setupAudio();
-            }
-            Tone.Transport.start();
-            runAnimationSequence();
-            statusEl.textContent = 'Recording... Animation will play.';
-        });
-
         // --- Initialization ---
         window.addEventListener('load', () => {
-            resizeCanvas();
-            createParticles();
-            animateParticles();
+             // Use document.fonts.ready to ensure fonts are loaded before drawing
+             document.fonts.ready.then(() => {
+                createParticles();
+                // Initial static render
+                const initialTimestamp = performance.now();
+                startTime = initialTimestamp;
+                animateLoop(initialTimestamp); // Draw the first frame (intro)
+                cancelAnimationFrame(animationFrameId); // but don't start the loop
+                startTime = 0; // Reset for actual animation start
+                statusEl.textContent = 'Ready to play or download.';
+                setTimeout(() => { if(!isAnimating) statusEl.textContent = ''; }, 3000);
+             });
         });
-        window.addEventListener('resize', () => {
-            resizeCanvas();
-            createParticles();
-        });
-
     </script>
 </body>
 </html>
-
