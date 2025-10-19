@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salah Quiz #4 (1080p)</title>
+    <title>Salah Quiz #4 - FHD Animation</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
@@ -15,9 +15,7 @@
             --gold: #FFD700;
             --soft-gold: #f5e6a8;
             --light-cream: #F5F5DC;
-            --glow-color: rgba(255, 215, 0, 0.7);
         }
-
         body, html {
             margin: 0;
             padding: 0;
@@ -27,35 +25,32 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            background-color: #111;
+            background-color: #1a1a1a;
             font-family: 'Poppins', sans-serif;
             overflow: hidden;
         }
-
         #canvas-container {
             width: 100%;
-            height: 90vh; /* Adjust height for controls */
+            height: 85vh; /* Adjust viewable area */
+            max-height: 800px;
             display: flex;
             justify-content: center;
             align-items: center;
         }
-        
         canvas {
             background: linear-gradient(160deg, var(--bg-gradient-start), var(--bg-gradient-end));
             max-width: 100%;
             max-height: 100%;
             aspect-ratio: 9 / 16;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            box-shadow: 0 0 40px rgba(0,0,0,0.6);
             border-radius: 20px;
         }
-
         #controls {
             padding: 20px;
             display: flex;
             gap: 15px;
             z-index: 10;
         }
-
         button {
             background-color: var(--gold);
             color: var(--bg-dark-green);
@@ -69,25 +64,23 @@
             transition: background-color 0.3s, transform 0.2s;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
-
         button:hover {
             background-color: var(--soft-gold);
             transform: translateY(-2px);
         }
-        
         button:disabled {
             background-color: #888;
             color: #ccc;
             cursor: not-allowed;
             transform: none;
         }
-        
         #status {
             color: white;
             font-size: 1rem;
             text-shadow: 1px 1px 3px black;
-            height: 20px; /* Reserve space */
+            height: 20px;
             margin-bottom: 10px;
+            text-align: center;
         }
     </style>
 </head>
@@ -96,10 +89,9 @@
     <div id="canvas-container">
         <canvas id="animation-canvas" width="1080" height="1920"></canvas>
     </div>
-    
     <div id="controls">
-        <button id="start-btn">Start Animation</button>
-        <button id="download-btn">Download Video (1080x1920)</button>
+        <button id="start-btn">Preview Animation</button>
+        <button id="download-btn">Download FHD Video</button>
     </div>
 
     <!-- CCapture.js for video recording -->
@@ -107,41 +99,19 @@
 
     <script>
         const quizData = [
-            {
-                question: "According to Hadith, what happens to a person’s sins between one Salah and the next?",
-                options: ["They remain until Friday", "They are forgiven if major sins are avoided", "They double in reward", "They are recorded but not forgiven"],
-                answer: 1
-            },
-            {
-                question: "What did the Prophet ﷺ compare the five daily prayers to in terms of cleansing sins?",
-                options: ["Bathing in a river five times a day", "Washing hands before eating", "Fasting for five days", "Drinking Zamzam water daily"],
-                answer: 0
-            },
-            {
-                question: "Which prayer, according to Hadith, protects a person from Hellfire?",
-                options: ["Maghrib", "Isha", "Fajr and Asr", "Dhuhr and Isha"],
-                answer: 2
-            },
-            {
-                question: "What reward did the Prophet ﷺ promise for praying 12 Sunnah Rak‘ahs daily?",
-                options: ["Forgiveness of all sins", "A house built in Paradise", "Shade on the Day of Judgment", "Protection from the grave"],
-                answer: 1
-            },
-            {
-                question: "According to Hadith, what special reward is for the one who walks to the Masjid for every Salah?",
-                options: ["Each step erases a sin and raises a rank", "Each step is counted as a good deed only", "Angels surround him on the way", "He gets double reward only for Jumu‘ah"],
-                answer: 0
-            }
+            { question: "According to Hadith, what happens to a person’s sins between one Salah and the next?", options: ["They remain until Friday", "They are forgiven if major sins are avoided", "They double in reward", "They are recorded but not forgiven"], answer: 1 },
+            { question: "What did the Prophet ﷺ compare the five daily prayers to in terms of cleansing sins?", options: ["Bathing in a river five times a day", "Washing hands before eating", "Fasting for five days", "Drinking Zamzam water daily"], answer: 0 },
+            { question: "Which prayer, according to Hadith, protects a person from Hellfire?", options: ["Maghrib", "Isha", "Fajr and Asr", "Dhuhr and Isha"], answer: 2 },
+            { question: "What reward did the Prophet ﷺ promise for praying 12 Sunnah Rak‘ahs daily?", options: ["Forgiveness of all sins", "A house built in Paradise", "Shade on the Day of Judgment", "Protection from the grave"], answer: 1 },
+            { question: "According to Hadith, what special reward is for the one who walks to the Masjid for every Salah?", options: ["Each step erases a sin and raises a rank", "Each step is counted as a good deed only", "Angels surround him on the way", "He gets double reward only for Jumu‘ah"], answer: 0 }
         ];
 
-        // --- DOM Elements ---
         const startBtn = document.getElementById('start-btn');
         const downloadBtn = document.getElementById('download-btn');
         const statusEl = document.getElementById('status');
         const canvas = document.getElementById('animation-canvas');
         const ctx = canvas.getContext('2d');
-        
-        // --- Animation State ---
+
         let isAnimating = false;
         let capturer = null;
         let startTime = 0;
@@ -151,35 +121,31 @@
         const W = canvas.width;
         const H = canvas.height;
 
-        // --- Easing function ---
         const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
-        
-        // --- Text Wrapping Helper ---
+        const easeInOutCubic = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
         function wrapText(text, x, y, maxWidth, lineHeight) {
             const words = text.split(' ');
             let line = '';
-            let testY = y;
+            let currentY = y;
             for (let n = 0; n < words.length; n++) {
                 const testLine = line + words[n] + ' ';
                 const metrics = ctx.measureText(testLine);
-                const testWidth = metrics.width;
-                if (testWidth > maxWidth && n > 0) {
-                    ctx.fillText(line, x, testY);
+                if (metrics.width > maxWidth && n > 0) {
+                    ctx.fillText(line, x, currentY);
                     line = words[n] + ' ';
-                    testY += lineHeight;
+                    currentY += lineHeight;
                 } else {
                     line = testLine;
                 }
             }
-            ctx.fillText(line, x, testY);
+            ctx.fillText(line, x, currentY);
         }
 
-        // --- Main Animation Loop ---
         function animateLoop(timestamp) {
             if (!startTime) startTime = timestamp;
-            const elapsed = (timestamp - startTime) / 1000; // in seconds
+            const elapsed = (timestamp - startTime) / 1000;
 
-            // Clear and draw background
             ctx.clearRect(0, 0, W, H);
             const gradient = ctx.createLinearGradient(0, 0, W, H);
             gradient.addColorStop(0, '#024b30');
@@ -190,137 +156,121 @@
             drawMosque();
             drawAndUpdateParticles();
 
-            // Timeline logic
-            if (elapsed < 4.0) { // 0-4s: Intro
+            // --- TIMELINE ---
+            // 0-4s: Intro
+            if (elapsed < 4.0) {
                 const progress = easeOutCubic(elapsed / 4.0);
+                const slideOffset = 50 * (1 - progress);
                 ctx.globalAlpha = progress;
-                ctx.fillStyle = '#FFD700';
                 ctx.textAlign = 'center';
-                
+                ctx.fillStyle = '#FFD700';
                 ctx.font = "70px 'Poppins'";
-                ctx.fillText("Bismillah", W / 2, H * 0.35 + (50 * (1-progress)));
-                
-                ctx.font = "150px 'Cinzel'";
+                ctx.fillText("Bismillah", W / 2, H * 0.35 + slideOffset);
                 ctx.shadowColor = 'rgba(255, 215, 0, 0.7)';
                 ctx.shadowBlur = 20;
-                ctx.fillText("Salah Quiz", W / 2, H * 0.5 + (50 * (1-progress)));
+                ctx.font = "150px 'Cinzel'";
+                ctx.fillText("Salah Quiz", W / 2, H * 0.5 + slideOffset);
                 ctx.shadowBlur = 0;
-                
                 ctx.font = "80px 'Poppins'";
-                ctx.fillText("#4", W / 2, H * 0.6 + (50 * (1-progress)));
-
-            } else if (elapsed < 42.5) { // 4s-42.5s: Questions (38.5s total -> 7.7s per question)
-                ctx.globalAlpha = 1.0;
-                const questionTime = elapsed - 4.0;
-                const questionIndex = Math.floor(questionTime / 7.7);
-                const timeInQuestion = questionTime % 7.7;
+                ctx.fillText("#4", W / 2, H * 0.6 + slideOffset);
+            } 
+            // 4s-42.5s: Questions (7.7s each)
+            else if (elapsed < 41.5) { 
+                const questionBlockTime = 7.5;
+                const questionIndex = Math.floor((elapsed - 4.0) / questionBlockTime);
+                const timeInQuestion = (elapsed - 4.0) % questionBlockTime;
                 
                 if (questionIndex < quizData.length) {
                     drawQuestion(quizData[questionIndex], timeInQuestion);
                 }
-            } else if (elapsed < 45.0) { // 42.5s-45s: Outro
-                const progress = easeOutCubic((elapsed - 42.5) / 2.5);
+            } 
+            // 41.5s-45s: Outro
+            else if (elapsed < 45.0) {
+                const progress = easeOutCubic((elapsed - 41.5) / 3.5);
                 ctx.globalAlpha = progress;
                 ctx.fillStyle = '#f5e6a8';
                 ctx.textAlign = 'center';
-
                 ctx.font = "120px 'Cinzel'";
                 ctx.fillText("JazakAllah Khair", W / 2, H * 0.45);
-                
                 ctx.font = "80px 'Poppins'";
                 ctx.fillText("Quiz Complete", W / 2, H * 0.55);
-
-            } else { // Animation finished
+            } 
+            // End
+            else {
                 stopAnimation();
                 return;
             }
 
-            if (capturer) {
-                capturer.capture(canvas);
-            }
+            if (capturer) capturer.capture(canvas);
             animationFrameId = requestAnimationFrame(animateLoop);
         }
 
         function drawQuestion(item, time) {
-             const questionProgress = Math.min(1, time / 1.0); // 1s to fade in
-             const optionsProgressStart = 1.5;
-             const revealTime = 5.5;
+            const questionFadeIn = Math.min(1, time / 1.0);
+            const optionsStart = 1.5;
+            const revealTime = 5.5;
 
-             // Draw Question Text
-             ctx.globalAlpha = easeOutCubic(questionProgress);
-             ctx.fillStyle = '#F5F5DC';
-             ctx.textAlign = 'center';
-             ctx.font = "72px 'Poppins'";
-             wrapText(item.question, W / 2, H * 0.25, W * 0.85, 90);
+            // Question Text
+            ctx.globalAlpha = easeOutCubic(questionFadeIn);
+            ctx.fillStyle = '#F5F5DC';
+            ctx.textAlign = 'center';
+            ctx.font = "72px 'Poppins'";
+            wrapText(item.question, W / 2, H * 0.25, W * 0.85, 90);
 
-             // Draw Options
-             for (let i = 0; i < item.options.length; i++) {
-                 const optionDelay = optionsProgressStart + i * 0.5;
-                 const optionProgress = Math.min(1, Math.max(0, (time - optionDelay) / 0.8));
-                 
-                 const isCorrect = (i === item.answer);
-                 const shouldReveal = time >= revealTime;
+            // Options
+            for (let i = 0; i < item.options.length; i++) {
+                const optionDelay = optionsStart + i * 0.4;
+                const optionProgress = Math.min(1, Math.max(0, (time - optionDelay) / 0.8));
+                
+                const isCorrect = i === item.answer;
+                const shouldReveal = time >= revealTime;
 
-                 let fillStyle = 'rgba(255, 255, 255, 0.1)';
-                 let strokeStyle = '#f5e6a8';
-                 let textColor = '#F5F5DC';
+                let fillStyle = 'rgba(255, 255, 255, 0.1)';
+                let strokeStyle = '#f5e6a8';
+                let textColor = '#F5F5DC';
 
-                 if (shouldReveal && isCorrect) {
-                     const revealProgress = Math.min(1, (time - revealTime) / 1.5);
-                     const glowAlpha = 0.3 + (0.5 * Math.sin(revealProgress * Math.PI));
-                     fillStyle = `rgba(144, 238, 144, ${0.4 + 0.4 * revealProgress})`;
-                     strokeStyle = 'lightgreen';
-                     textColor = '#013220';
-                     ctx.shadowColor = `rgba(144, 238, 144, ${glowAlpha})`;
-                     ctx.shadowBlur = 30;
-                 }
-                 
-                 ctx.globalAlpha = easeOutCubic(optionProgress);
-                 
-                 const boxHeight = 150;
-                 const boxY = H * 0.45 + i * (boxHeight + 30);
-                 const boxX = W * 0.1;
-                 const boxWidth = W * 0.8;
+                if (shouldReveal && isCorrect) {
+                    const revealProgress = Math.min(1, (time - revealTime) / 1.5);
+                    const glowAlpha = 0.3 + (0.5 * Math.sin(revealProgress * Math.PI));
+                    fillStyle = `rgba(144, 238, 144, ${0.4 + 0.4 * revealProgress})`;
+                    strokeStyle = 'lightgreen';
+                    textColor = '#013220';
+                    ctx.shadowColor = `rgba(144, 238, 144, ${glowAlpha})`;
+                    ctx.shadowBlur = 30;
+                }
+                
+                ctx.globalAlpha = easeOutCubic(optionProgress);
+                
+                const boxHeight = 150;
+                const boxY = H * 0.45 + i * (boxHeight + 30);
+                const boxX = W * 0.1;
+                const boxWidth = W * 0.8;
+                
+                ctx.fillStyle = fillStyle;
+                ctx.strokeStyle = strokeStyle;
+                ctx.lineWidth = 3;
+                
+                ctx.beginPath();
+                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 20);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.shadowBlur = 0;
 
-                 ctx.fillStyle = fillStyle;
-                 ctx.strokeStyle = strokeStyle;
-                 ctx.lineWidth = 3;
-                 
-                 // Rounded rectangle
-                 ctx.beginPath();
-                 ctx.moveTo(boxX + 20, boxY);
-                 ctx.lineTo(boxX + boxWidth - 20, boxY);
-                 ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + 20);
-                 ctx.lineTo(boxX + boxWidth, boxY + boxHeight - 20);
-                 ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - 20, boxY + boxHeight);
-                 ctx.lineTo(boxX + 20, boxY + boxHeight);
-                 ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - 20);
-                 ctx.lineTo(boxX, boxY + 20);
-                 ctx.quadraticCurveTo(boxX, boxY, boxX + 20, boxY);
-                 ctx.closePath();
-                 
-                 ctx.fill();
-                 ctx.stroke();
-
-                 ctx.shadowBlur = 0; // Reset shadow for text
-
-                 ctx.fillStyle = textColor;
-                 ctx.font = "52px 'Poppins'";
-                 ctx.textAlign = 'left';
-                 wrapText(item.options[i], boxX + 40, boxY + (boxHeight/2) - (item.options[i].includes(' ') ? 26 : 0) + 26, boxWidth - 80, 60);
-             }
+                ctx.fillStyle = textColor;
+                ctx.font = "52px 'Poppins'";
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                wrapText(item.options[i], boxX + 40, boxY + boxHeight / 2, boxWidth - 80, 60);
+                ctx.textBaseline = 'alphabetic'; // Reset baseline
+            }
              ctx.globalAlpha = 1.0;
         }
 
-        // --- Background helpers ---
         function createParticles() {
             particles = [];
             for (let i = 0; i < 50; i++) {
-                particles.push({
-                    x: Math.random() * W, y: Math.random() * H,
-                    size: Math.random() * 3 + 2,
-                    speedX: (Math.random() * 0.4 - 0.2), speedY: (Math.random() * 0.4 - 0.2),
-                });
+                particles.push({ x: Math.random() * W, y: Math.random() * H, size: Math.random() * 3 + 2, speedX: (Math.random() * 0.4 - 0.2), speedY: (Math.random() * 0.4 - 0.2) });
             }
         }
         function drawAndUpdateParticles() {
@@ -350,7 +300,6 @@
             ctx.beginPath(); ctx.moveTo(W * 0.74, H*0.8); ctx.quadraticCurveTo(W*0.775, H*0.75, W*0.81, H*0.8); ctx.fill();
         }
 
-        // --- Control Functions ---
         function startAnimation(isRecording = false) {
             if (isAnimating) return;
             isAnimating = true;
@@ -359,13 +308,12 @@
             downloadBtn.disabled = true;
 
             if (isRecording) {
-                 capturer = new CCapture({ format: 'webm', framerate: 30, quality: 95, verbose: false });
+                 capturer = new CCapture({ format: 'webm', framerate: 30, quality: 95, name: 'Salah_Quiz_Animation' });
                  capturer.start();
-                 statusEl.textContent = 'Recording video... please wait.';
+                 statusEl.textContent = 'Recording FHD video... please wait.';
             } else {
                  statusEl.textContent = 'Animation playing...';
             }
-            
             animationFrameId = requestAnimationFrame(animateLoop);
         }
 
@@ -377,31 +325,28 @@
             statusEl.textContent = 'Animation finished.';
 
             if (capturer) {
-                statusEl.textContent = 'Finalizing video...';
+                statusEl.textContent = 'Finalizing video... this may take a moment.';
                 capturer.stop();
                 capturer.save();
                 capturer = null;
                 setTimeout(() => { statusEl.textContent = 'Video saved!'; }, 1000);
             }
-             setTimeout(() => { if(!isAnimating) statusEl.textContent = ''; }, 4000);
+            setTimeout(() => { if(!isAnimating) statusEl.textContent = ''; }, 4000);
         }
 
         startBtn.addEventListener('click', () => startAnimation(false));
         downloadBtn.addEventListener('click', () => startAnimation(true));
         
-        // --- Initialization ---
         window.addEventListener('load', () => {
-             // Use document.fonts.ready to ensure fonts are loaded before drawing
              document.fonts.ready.then(() => {
                 createParticles();
-                // Initial static render
                 const initialTimestamp = performance.now();
                 startTime = initialTimestamp;
-                animateLoop(initialTimestamp); // Draw the first frame (intro)
-                cancelAnimationFrame(animationFrameId); // but don't start the loop
-                startTime = 0; // Reset for actual animation start
-                statusEl.textContent = 'Ready to play or download.';
-                setTimeout(() => { if(!isAnimating) statusEl.textContent = ''; }, 3000);
+                animateLoop(initialTimestamp);
+                cancelAnimationFrame(animationFrameId);
+                startTime = 0;
+                statusEl.textContent = 'Ready to preview or download.';
+                setTimeout(() => { if(!isAnimating) statusEl.textContent = ''; }, 4000);
              });
         });
     </script>
