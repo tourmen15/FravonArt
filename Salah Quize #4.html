@@ -160,6 +160,30 @@
             border-radius: 50%;
         }
         
+        .prayer-beads {
+            position: absolute;
+            bottom: 100px;
+            left: 30px;
+            width: 60px;
+            height: 40px;
+            display: flex;
+            justify-content: space-between;
+            opacity: 0.5;
+        }
+        
+        .bead {
+            width: 8px;
+            height: 8px;
+            background: rgba(212, 175, 55, 0.7);
+            border-radius: 50%;
+            animation: beadPulse 2s infinite;
+        }
+        
+        .bead:nth-child(2) { animation-delay: 0.2s; }
+        .bead:nth-child(3) { animation-delay: 0.4s; }
+        .bead:nth-child(4) { animation-delay: 0.6s; }
+        .bead:nth-child(5) { animation-delay: 0.8s; }
+        
         .stars {
             position: absolute;
             width: 100%;
@@ -188,6 +212,29 @@
             animation: floatParticle 8s infinite linear;
         }
         
+        /* Download button */
+        .download-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(212, 175, 55, 0.8);
+            color: #0a3a1d;
+            border: none;
+            border-radius: 50px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 100;
+        }
+        
+        .download-btn:hover {
+            background: rgba(212, 175, 55, 1);
+            transform: scale(1.05);
+        }
+        
         /* Animations */
         @keyframes fadeIn {
             to { opacity: 1; }
@@ -203,6 +250,11 @@
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.1); }
+        }
+        
+        @keyframes beadPulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.2); opacity: 1; }
         }
         
         @keyframes twinkle {
@@ -264,6 +316,13 @@
         
         <div class="crescent"></div>
         <div class="mosque"></div>
+        <div class="prayer-beads">
+            <div class="bead"></div>
+            <div class="bead"></div>
+            <div class="bead"></div>
+            <div class="bead"></div>
+            <div class="bead"></div>
+        </div>
         
         <div class="title">Salah Quiz #4</div>
         
@@ -271,19 +330,42 @@
         
         <div class="options" id="options"></div>
         
+        <button class="download-btn" id="download-btn">Download Video</button>
+        
         <div class="progress-bar">
             <div class="progress" id="progress"></div>
         </div>
         
+        <!-- Audio elements -->
         <audio id="bg-music" loop>
+            <!-- Background music - using a placeholder source -->
             <source src="https://assets.mixkit.co/music/preview/mixkit-slow-oud-strings-171.mp3" type="audio/mpeg">
         </audio>
         
         <audio id="chime-sound">
+            <!-- Chime sound - using a placeholder source -->
             <source src="https://assets.mixkit.co/sfx/preview/mixkit-wind-chimes-1111.mp3" type="audio/mpeg">
         </audio>
         
         <audio id="correct-sound">
+            <!-- Correct answer sound - using a placeholder source -->
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
+        </audio>
+        
+        <!-- Voice narration elements -->
+        <audio id="voice-q1">
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
+        </audio>
+        <audio id="voice-q2">
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
+        </audio>
+        <audio id="voice-q3">
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
+        </audio>
+        <audio id="voice-q4">
+            <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
+        </audio>
+        <audio id="voice-q5">
             <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
         </audio>
     </div>
@@ -300,7 +382,8 @@
                         "They double in reward",
                         "They are recorded but not forgiven"
                     ],
-                    correct: 1
+                    correct: 1,
+                    reference: "Sahih Muslim 233 — 'The five prayers… are expiation for what is between them, so long as major sins are avoided.'"
                 },
                 {
                     question: "What did the Prophet ﷺ compare the five daily prayers to in terms of cleansing sins?",
@@ -310,7 +393,8 @@
                         "Fasting for five days",
                         "Drinking Zamzam water daily"
                     ],
-                    correct: 0
+                    correct: 0,
+                    reference: "Sahih al-Bukhari 528 — 'If one of you had a river by his door and bathed in it five times a day, would any dirt remain?'"
                 },
                 {
                     question: "Which prayer, according to Hadith, protects a person from Hellfire?",
@@ -320,7 +404,8 @@
                         "Fajr and Asr",
                         "Dhuhr and Isha"
                     ],
-                    correct: 2
+                    correct: 2,
+                    reference: "Sahih al-Bukhari 574 — 'Whoever prays before sunrise and before sunset will not enter Hell.'"
                 },
                 {
                     question: "What reward did the Prophet ﷺ promise for praying 12 Sunnah Rak'ahs daily?",
@@ -330,7 +415,8 @@
                         "Shade on the Day of Judgment",
                         "Protection from the grave"
                     ],
-                    correct: 1
+                    correct: 1,
+                    reference: "Sahih Muslim 728 — 'Whoever prays twelve Rak'ahs in a day and night, a house will be built for him in Paradise.'"
                 },
                 {
                     question: "According to Hadith, what special reward is for the one who walks to the Masjid for every Salah?",
@@ -340,7 +426,8 @@
                         "Angels surround him on the way",
                         "He gets double reward only for Jumu'ah"
                     ],
-                    correct: 0
+                    correct: 0,
+                    reference: "Sahih Muslim 666 — 'For every step he takes, one sin is removed and one rank is raised.'"
                 }
             ];
             
@@ -348,6 +435,7 @@
             const questionEl = document.getElementById('question');
             const optionsEl = document.getElementById('options');
             const progressEl = document.getElementById('progress');
+            const downloadBtn = document.getElementById('download-btn');
             const bgMusic = document.getElementById('bg-music');
             const chimeSound = document.getElementById('chime-sound');
             const correctSound = document.getElementById('correct-sound');
@@ -381,6 +469,11 @@
             
             // Initialize quiz
             function initQuiz() {
+                // Show download button at the end
+                setTimeout(() => {
+                    downloadBtn.style.animation = 'fadeIn 1s forwards';
+                }, 30000); // Show after 30 seconds
+                
                 // Play background music and chime
                 setTimeout(() => {
                     bgMusic.volume = 0.3;
@@ -415,10 +508,35 @@
                     optionsEl.appendChild(optionEl);
                 });
                 
-                // After 2-3 seconds, show correct answer
+                // Play voice narration for this question
+                playVoiceNarration(currentQuestion);
+                
+                // After 3 seconds, show correct answer
                 timer = setTimeout(() => {
                     showCorrectAnswer();
-                }, 2500);
+                }, 3000);
+            }
+            
+            // Play voice narration for question
+            function playVoiceNarration(questionIndex) {
+                // In a real implementation, you would have actual voice files
+                // For this demo, we'll simulate voice with a placeholder
+                console.log(`Playing voice for question ${questionIndex + 1}`);
+                
+                // Simulate voice timing
+                setTimeout(() => {
+                    // Question narration
+                    console.log(`Narrating: ${quizData[questionIndex].question}`);
+                    
+                    // Options narration after a delay
+                    setTimeout(() => {
+                        quizData[questionIndex].options.forEach((option, i) => {
+                            setTimeout(() => {
+                                console.log(`Narrating: ${String.fromCharCode(65 + i)}) ${option}`);
+                            }, i * 800);
+                        });
+                    }, 1500);
+                }, 500);
             }
             
             // Show correct answer
@@ -432,19 +550,30 @@
                 correctSound.volume = 0.5;
                 correctSound.play().catch(e => console.log("Audio play failed:", e));
                 
+                // Show reference after a delay
+                setTimeout(() => {
+                    const referenceEl = document.createElement('div');
+                    referenceEl.className = 'option';
+                    referenceEl.textContent = quizData[currentQuestion].reference;
+                    referenceEl.style.background = 'rgba(212, 175, 55, 0.2)';
+                    referenceEl.style.fontSize = '14px';
+                    referenceEl.style.animation = 'slideIn 0.8s forwards';
+                    optionsEl.appendChild(referenceEl);
+                }, 1000);
+                
                 // Move to next question or end quiz
                 currentQuestion++;
                 if (currentQuestion < quizData.length) {
-                    setTimeout(showQuestion, 2000);
+                    setTimeout(showQuestion, 4000);
                 } else {
                     // End of quiz
-                    setTimeout(endQuiz, 2000);
+                    setTimeout(endQuiz, 4000);
                 }
             }
             
             // End quiz
             function endQuiz() {
-                questionEl.textContent = "Quiz Completed!";
+                questionEl.textContent = "Quiz Completed! May your Salah be accepted.";
                 questionEl.style.animation = 'fadeIn 1s forwards';
                 
                 optionsEl.innerHTML = '';
@@ -461,6 +590,18 @@
                     }
                 }, 200);
             }
+            
+            // Download functionality
+            downloadBtn.addEventListener('click', function() {
+                // In a real implementation, this would generate and download a video
+                // For this demo, we'll show an alert
+                alert("In a full implementation, this would download a 45-second MP4 video of the quiz animation. This requires server-side processing or a media recording library.");
+                
+                // Example of how this could work with a media recording library:
+                // 1. Use MediaRecorder API to record the canvas
+                // 2. Combine with audio tracks
+                // 3. Generate and offer download
+            });
             
             // Start the quiz
             initQuiz();
