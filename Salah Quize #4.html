@@ -2,610 +2,575 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
     <title>Salah Quiz #4</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        * {
+        :root {
+            --bg-dark-green: #013220;
+            --bg-gradient-start: #024b30;
+            --bg-gradient-end: #002215;
+            --gold: #FFD700;
+            --soft-gold: #f5e6a8;
+            --light-cream: #F5F5DC;
+            --glow-color: rgba(255, 215, 0, 0.7);
+        }
+
+        body, html {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        
-        body {
-            background: #000;
-            overflow: hidden;
-            width: 100vw;
-            height: 100vh;
+            height: 100%;
+            width: 100%;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-        
-        #quiz-container {
-            position: relative;
-            width: 360px;
-            height: 640px;
-            background: linear-gradient(135deg, #0a3a1d 0%, #1a5c2a 50%, #0a3a1d 100%);
+            background-color: #111;
+            font-family: 'Poppins', sans-serif;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            border-radius: 20px;
         }
-        
-        /* Islamic geometric pattern background */
-        .pattern {
-            position: absolute;
+
+        #container {
             width: 100%;
             height: 100%;
-            opacity: 0.1;
-            background-image: 
-                radial-gradient(circle at 25% 25%, rgba(212, 175, 55, 0.3) 2px, transparent 0),
-                radial-gradient(circle at 75% 75%, rgba(212, 175, 55, 0.3) 2px, transparent 0);
-            background-size: 60px 60px;
-            animation: float 20s infinite linear;
+            max-width: 420px; /* Common mobile width */
+            max-height: 840px; /* For desktop viewing */
+            aspect-ratio: 9 / 16;
+            position: relative;
+            background: linear-gradient(160deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            overflow: hidden;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            border-radius: 20px;
         }
-        
-        @keyframes float {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(-60px, -60px); }
-        }
-        
-        /* Title styling */
-        .title {
+
+        #background-canvas {
             position: absolute;
-            top: 40px;
+            top: 0;
+            left: 0;
             width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--light-cream);
             text-align: center;
-            color: #d4af37;
-            font-size: 28px;
-            font-weight: bold;
-            text-shadow: 0 2px 10px rgba(212, 175, 55, 0.5);
+            z-index: 2;
+            padding: 20px;
+            box-sizing: border-box;
             opacity: 0;
-            animation: fadeIn 1s forwards 0.5s;
+            transform: scale(1.05);
+            transition: opacity 1s ease-in-out, transform 1s ease-in-out;
+        }
+
+        .screen.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        #intro-screen h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 3.5rem;
+            color: var(--gold);
+            text-shadow: 0 0 15px var(--glow-color);
+            margin: 0;
         }
         
-        /* Question styling */
-        .question {
-            position: absolute;
-            top: 120px;
+        #intro-screen h2 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.2rem;
+            color: var(--soft-gold);
+            letter-spacing: 2px;
+            font-weight: 400;
+        }
+
+        #quiz-screen {
+            justify-content: flex-start;
+            padding-top: 15%;
+        }
+        
+        .quiz-content {
             width: 100%;
-            padding: 0 20px;
-            text-align: center;
-            color: #fff;
-            font-size: 20px;
-            line-height: 1.4;
             opacity: 0;
-            transform: translateY(20px);
+            transition: opacity 0.5s ease-in-out;
         }
-        
-        /* Options styling */
-        .options {
-            position: absolute;
-            top: 280px;
+
+        .quiz-content.visible {
+            opacity: 1;
+        }
+
+        #question-text {
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--light-cream);
+        }
+
+        #options-container {
             width: 100%;
-            padding: 0 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
         }
-        
+
         .option {
             background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(212, 175, 55, 0.3);
-            border-radius: 10px;
-            padding: 12px 15px;
-            margin-bottom: 10px;
-            color: #fff;
-            font-size: 16px;
+            border: 1px solid var(--soft-gold);
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1.1rem;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
             opacity: 0;
             transform: translateY(20px);
         }
+
+        .option.correct {
+            animation: correct-glow 1.5s ease-in-out forwards;
+        }
         
-        .option:hover {
-            background: rgba(212, 175, 55, 0.2);
+        @keyframes correct-glow {
+            0% {
+                background: rgba(255, 255, 255, 0.1);
+                box-shadow: none;
+            }
+            50% {
+                background: rgba(144, 238, 144, 0.8);
+                color: var(--bg-dark-green);
+                box-shadow: 0 0 20px 5px rgba(144, 238, 144, 0.7);
+                border-color: lightgreen;
+            }
+            100% {
+                 background: rgba(144, 238, 144, 0.8);
+                color: var(--bg-dark-green);
+                box-shadow: 0 0 20px 5px rgba(144, 238, 144, 0.7);
+                border-color: lightgreen;
+            }
+        }
+        
+        /* Entrance animations for options */
+        .option.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            background-color: var(--gold);
+            color: var(--bg-dark-green);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        button:hover {
+            background-color: var(--soft-gold);
             transform: translateY(-2px);
         }
         
-        .correct {
-            background: rgba(76, 175, 80, 0.3);
-            border-color: rgba(76, 175, 80, 0.7);
-            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+        button:disabled {
+            background-color: #888;
+            cursor: not-allowed;
+            transform: none;
         }
         
-        /* Decorative elements */
-        .crescent {
+        #status {
             position: absolute;
-            top: 80px;
-            right: 30px;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            box-shadow: -8px 0 0 0 #d4af37;
-            opacity: 0.7;
-            animation: pulse 3s infinite;
-        }
-        
-        .mosque {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 60px;
-            background: rgba(212, 175, 55, 0.2);
-            border-radius: 10px 10px 0 0;
-            opacity: 0.5;
-        }
-        
-        .mosque:before {
-            content: '';
-            position: absolute;
-            top: -15px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 30px;
-            height: 30px;
-            background: rgba(212, 175, 55, 0.3);
-            border-radius: 50%;
-        }
-        
-        .mosque:after {
-            content: '';
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 20px;
-            height: 20px;
-            background: rgba(212, 175, 55, 0.5);
-            border-radius: 50%;
-        }
-        
-        .prayer-beads {
-            position: absolute;
-            bottom: 100px;
-            left: 30px;
-            width: 60px;
-            height: 40px;
-            display: flex;
-            justify-content: space-between;
-            opacity: 0.5;
-        }
-        
-        .bead {
-            width: 8px;
-            height: 8px;
-            background: rgba(212, 175, 55, 0.7);
-            border-radius: 50%;
-            animation: beadPulse 2s infinite;
-        }
-        
-        .bead:nth-child(2) { animation-delay: 0.2s; }
-        .bead:nth-child(3) { animation-delay: 0.4s; }
-        .bead:nth-child(4) { animation-delay: 0.6s; }
-        .bead:nth-child(5) { animation-delay: 0.8s; }
-        
-        .stars {
-            position: absolute;
+            top: 20px;
             width: 100%;
-            height: 100%;
+            text-align: center;
+            color: white;
+            z-index: 11;
+            font-size: 1rem;
+            text-shadow: 1px 1px 3px black;
         }
-        
-        .star {
-            position: absolute;
-            background: #fff;
-            border-radius: 50%;
-            animation: twinkle 2s infinite;
-        }
-        
-        .particles {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-        }
-        
-        .particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: rgba(212, 175, 55, 0.7);
-            border-radius: 50%;
-            animation: floatParticle 8s infinite linear;
-        }
-        
-        /* Download button */
-        .download-btn {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(212, 175, 55, 0.8);
-            color: #0a3a1d;
-            border: none;
-            border-radius: 50px;
-            padding: 10px 20px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            opacity: 0;
-            transition: all 0.3s;
-            z-index: 100;
-        }
-        
-        .download-btn:hover {
-            background: rgba(212, 175, 55, 1);
-            transform: scale(1.05);
-        }
-        
-        /* Animations */
-        @keyframes fadeIn {
-            to { opacity: 1; }
-        }
-        
-        @keyframes slideIn {
-            to { 
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-        
-        @keyframes beadPulse {
-            0%, 100% { transform: scale(1); opacity: 0.5; }
-            50% { transform: scale(1.2); opacity: 1; }
-        }
-        
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.2; }
-            50% { opacity: 1; }
-        }
-        
-        @keyframes floatParticle {
-            0% {
-                transform: translateY(100vh) rotate(0deg);
-                opacity: 0;
-            }
-            10% {
-                opacity: 1;
-            }
-            90% {
-                opacity: 1;
-            }
-            100% {
-                transform: translateY(-100px) rotate(360deg);
-                opacity: 0;
-            }
-        }
-        
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 5px rgba(76, 175, 80, 0.5); }
-            50% { box-shadow: 0 0 20px rgba(76, 175, 80, 0.8); }
-        }
-        
-        /* Progress bar */
-        .progress-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 5px;
-            background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .progress {
-            height: 100%;
-            background: linear-gradient(90deg, #d4af37, #1a5c2a);
-            width: 0%;
-            transition: width 0.3s;
-        }
+
     </style>
 </head>
 <body>
-    <div id="quiz-container">
-        <div class="pattern"></div>
-        
-        <div class="stars" id="stars"></div>
-        <div class="particles" id="particles"></div>
-        
-        <div class="crescent"></div>
-        <div class="mosque"></div>
-        <div class="prayer-beads">
-            <div class="bead"></div>
-            <div class="bead"></div>
-            <div class="bead"></div>
-            <div class="bead"></div>
-            <div class="bead"></div>
+    <div id="container">
+        <canvas id="background-canvas"></canvas>
+
+        <div id="intro-screen" class="screen">
+            <h2>Bismillah</h2>
+            <h1>Salah Quiz</h1>
+            <h2>#4</h2>
+        </div>
+
+        <div id="quiz-screen" class="screen">
+            <div id="quiz-content" class="quiz-content">
+                <div id="question-text"></div>
+                <div id="options-container">
+                    <div class="option" id="option-0"></div>
+                    <div class="option" id="option-1"></div>
+                    <div class="option" id="option-2"></div>
+                    <div class="option" id="option-3"></div>
+                </div>
+            </div>
         </div>
         
-        <div class="title">Salah Quiz #4</div>
-        
-        <div class="question" id="question"></div>
-        
-        <div class="options" id="options"></div>
-        
-        <button class="download-btn" id="download-btn">Download Video</button>
-        
-        <div class="progress-bar">
-            <div class="progress" id="progress"></div>
+        <div id="outro-screen" class="screen">
+            <h1>JazakAllah Khair</h1>
+            <h2>Quiz Complete</h2>
         </div>
         
-        <!-- Audio elements -->
-        <audio id="bg-music" loop>
-            <!-- Background music - using a placeholder source -->
-            <source src="https://assets.mixkit.co/music/preview/mixkit-slow-oud-strings-171.mp3" type="audio/mpeg">
-        </audio>
-        
-        <audio id="chime-sound">
-            <!-- Chime sound - using a placeholder source -->
-            <source src="https://assets.mixkit.co/sfx/preview/mixkit-wind-chimes-1111.mp3" type="audio/mpeg">
-        </audio>
-        
-        <audio id="correct-sound">
-            <!-- Correct answer sound - using a placeholder source -->
-            <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
-        </audio>
-        
-        <!-- Voice narration elements -->
-        <audio id="voice-q1">
-            <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
-        </audio>
-        <audio id="voice-q2">
-            <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
-        </audio>
-        <audio id="voice-q3">
-            <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
-        </audio>
-        <audio id="voice-q4">
-            <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
-        </audio>
-        <audio id="voice-q5">
-            <source src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" type="audio/mpeg">
-        </audio>
+        <div id="status"></div>
+    </div>
+    
+    <div id="controls">
+        <button id="start-btn">Start Animation</button>
+        <button id="download-btn">Download Video</button>
     </div>
 
+    <!-- Tone.js for sound synthesis -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <!-- CCapture.js for video recording -->
+    <script src="https://unpkg.com/ccapture.js@1.1.0/build/CCapture.all.min.js"></script>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Quiz data
-            const quizData = [
-                {
-                    question: "According to Hadith, what happens to a person's sins between one Salah and the next?",
-                    options: [
-                        "They remain until Friday",
-                        "They are forgiven if major sins are avoided",
-                        "They double in reward",
-                        "They are recorded but not forgiven"
-                    ],
-                    correct: 1,
-                    reference: "Sahih Muslim 233 — 'The five prayers… are expiation for what is between them, so long as major sins are avoided.'"
-                },
-                {
-                    question: "What did the Prophet ﷺ compare the five daily prayers to in terms of cleansing sins?",
-                    options: [
-                        "Bathing in a river five times a day",
-                        "Washing hands before eating",
-                        "Fasting for five days",
-                        "Drinking Zamzam water daily"
-                    ],
-                    correct: 0,
-                    reference: "Sahih al-Bukhari 528 — 'If one of you had a river by his door and bathed in it five times a day, would any dirt remain?'"
-                },
-                {
-                    question: "Which prayer, according to Hadith, protects a person from Hellfire?",
-                    options: [
-                        "Maghrib",
-                        "Isha",
-                        "Fajr and Asr",
-                        "Dhuhr and Isha"
-                    ],
-                    correct: 2,
-                    reference: "Sahih al-Bukhari 574 — 'Whoever prays before sunrise and before sunset will not enter Hell.'"
-                },
-                {
-                    question: "What reward did the Prophet ﷺ promise for praying 12 Sunnah Rak'ahs daily?",
-                    options: [
-                        "Forgiveness of all sins",
-                        "A house built in Paradise",
-                        "Shade on the Day of Judgment",
-                        "Protection from the grave"
-                    ],
-                    correct: 1,
-                    reference: "Sahih Muslim 728 — 'Whoever prays twelve Rak'ahs in a day and night, a house will be built for him in Paradise.'"
-                },
-                {
-                    question: "According to Hadith, what special reward is for the one who walks to the Masjid for every Salah?",
-                    options: [
-                        "Each step erases a sin and raises a rank",
-                        "Each step is counted as a good deed only",
-                        "Angels surround him on the way",
-                        "He gets double reward only for Jumu'ah"
-                    ],
-                    correct: 0,
-                    reference: "Sahih Muslim 666 — 'For every step he takes, one sin is removed and one rank is raised.'"
+        const quizData = [
+            {
+                question: "According to Hadith, what happens to a person’s sins between one Salah and the next?",
+                options: ["They remain until Friday", "They are forgiven if major sins are avoided", "They double in reward", "They are recorded but not forgiven"],
+                answer: 1
+            },
+            {
+                question: "What did the Prophet ﷺ compare the five daily prayers to in terms of cleansing sins?",
+                options: ["Bathing in a river five times a day", "Washing hands before eating", "Fasting for five days", "Drinking Zamzam water daily"],
+                answer: 0
+            },
+            {
+                question: "Which prayer, according to Hadith, protects a person from Hellfire?",
+                options: ["Maghrib", "Isha", "Fajr and Asr", "Dhuhr and Isha"],
+                answer: 2
+            },
+            {
+                question: "What reward did the Prophet ﷺ promise for praying 12 Sunnah Rak‘ahs daily?",
+                options: ["Forgiveness of all sins", "A house built in Paradise", "Shade on the Day of Judgment", "Protection from the grave"],
+                answer: 1
+            },
+            {
+                question: "According to Hadith, what special reward is for the one who walks to the Masjid for every Salah?",
+                options: ["Each step erases a sin and raises a rank", "Each step is counted as a good deed only", "Angels surround him on the way", "He gets double reward only for Jumu‘ah"],
+                answer: 0
+            }
+        ];
+
+        // --- DOM Elements ---
+        const startBtn = document.getElementById('start-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const statusEl = document.getElementById('status');
+        
+        const introScreen = document.getElementById('intro-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const outroScreen = document.getElementById('outro-screen');
+        const quizContent = document.getElementById('quiz-content');
+
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const optionElements = [
+            document.getElementById('option-0'),
+            document.getElementById('option-1'),
+            document.getElementById('option-2'),
+            document.getElementById('option-3')
+        ];
+        
+        let isAnimating = false;
+        let capturer = null;
+
+        // --- Audio Engine ---
+        let synth, musicLoop, chime;
+        
+        async function setupAudio() {
+            await Tone.start();
+            // Intro Chime
+            chime = new Tone.Synth({
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.01, decay: 1, sustain: 0.1, release: 1 }
+            }).toDestination();
+
+            // Background Oud-like music
+            synth = new Tone.PluckSynth({
+                attackNoise: 0.5,
+                dampening: 4000,
+                resonance: 0.8
+            }).toDestination();
+            synth.volume.value = -18;
+            
+            const notes = ["G3", "A3", "C4", "D4", "G4", "C4", "A3"];
+            let noteIndex = 0;
+            musicLoop = new Tone.Loop(time => {
+                synth.triggerAttack(notes[noteIndex % notes.length], time);
+                noteIndex++;
+            }, "2n").start(0);
+            
+            Tone.Transport.bpm.value = 70;
+        }
+
+        // --- Voice Narration ---
+        const speaker = window.speechSynthesis;
+        function speak(text) {
+            return new Promise(resolve => {
+                if (speaker.speaking) {
+                    console.error("SpeechSynthesis is already speaking.");
+                    resolve();
+                    return;
                 }
-            ];
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.pitch = 1;
+                utterance.rate = 0.9;
+                utterance.volume = 1;
+                utterance.onend = resolve;
+                utterance.onerror = (e) => {
+                    console.error("SpeechSynthesis error:", e);
+                    resolve(); // Resolve anyway to not break the chain
+                };
+                speaker.speak(utterance);
+            });
+        }
+        
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        // --- Animation Sequence ---
+        async function runAnimationSequence() {
+            isAnimating = true;
+            startBtn.disabled = true;
+            downloadBtn.disabled = true;
             
-            // DOM elements
-            const questionEl = document.getElementById('question');
-            const optionsEl = document.getElementById('options');
-            const progressEl = document.getElementById('progress');
-            const downloadBtn = document.getElementById('download-btn');
-            const bgMusic = document.getElementById('bg-music');
-            const chimeSound = document.getElementById('chime-sound');
-            const correctSound = document.getElementById('correct-sound');
-            const starsEl = document.getElementById('stars');
-            const particlesEl = document.getElementById('particles');
+            // Reset UI
+            introScreen.classList.remove('visible');
+            quizScreen.classList.remove('visible');
+            outroScreen.classList.remove('visible');
+            quizContent.classList.remove('visible');
             
-            // Create stars
-            for (let i = 0; i < 15; i++) {
-                const star = document.createElement('div');
-                star.className = 'star';
-                star.style.left = `${Math.random() * 100}%`;
-                star.style.top = `${Math.random() * 100}%`;
-                star.style.width = `${Math.random() * 3 + 1}px`;
-                star.style.height = star.style.width;
-                star.style.animationDelay = `${Math.random() * 2}s`;
-                starsEl.appendChild(star);
+            // 1. Intro (4 seconds)
+            introScreen.classList.add('visible');
+            chime.triggerAttackRelease("C5", "2s");
+            await delay(4000);
+            introScreen.classList.remove('visible');
+            await delay(1000);
+
+            // 2. Questions (8 seconds each * 5 = 40 seconds)
+            quizScreen.classList.add('visible');
+
+            for (let i = 0; i < quizData.length; i++) {
+                await displayQuestion(i);
             }
             
-            // Create particles
-            for (let i = 0; i < 20; i++) {
-                const particle = document.createElement('div');
-                particle.className = 'particle';
-                particle.style.left = `${Math.random() * 100}%`;
-                particle.style.animationDelay = `${Math.random() * 8}s`;
-                particlesEl.appendChild(particle);
+            // 3. Outro (1 second)
+            quizScreen.classList.remove('visible');
+            await delay(1000);
+            outroScreen.classList.add('visible');
+            await delay(4000); // Hold outro for a bit
+            outroScreen.classList.remove('visible');
+
+            isAnimating = false;
+            startBtn.disabled = false;
+            downloadBtn.disabled = false;
+            
+            if (capturer) {
+                statusEl.textContent = 'Finalizing video... please wait.';
+                capturer.stop();
+                capturer.save();
+                capturer = null;
+                statusEl.textContent = 'Video saved!';
+                setTimeout(() => statusEl.textContent = '', 3000);
             }
+            Tone.Transport.stop();
+        }
+        
+        async function displayQuestion(index) {
+            const item = quizData[index];
             
-            // Variables
-            let currentQuestion = 0;
-            let timer;
-            
-            // Initialize quiz
-            function initQuiz() {
-                // Show download button at the end
-                setTimeout(() => {
-                    downloadBtn.style.animation = 'fadeIn 1s forwards';
-                }, 30000); // Show after 30 seconds
-                
-                // Play background music and chime
-                setTimeout(() => {
-                    bgMusic.volume = 0.3;
-                    bgMusic.play().catch(e => console.log("Audio play failed:", e));
-                    
-                    chimeSound.volume = 0.5;
-                    chimeSound.play().catch(e => console.log("Audio play failed:", e));
-                }, 500);
-                
-                // Start first question after intro
-                setTimeout(showQuestion, 2000);
-            }
-            
-            // Show question
-            function showQuestion() {
-                // Update progress
-                progressEl.style.width = `${(currentQuestion / quizData.length) * 100}%`;
-                
-                // Set question text
-                questionEl.textContent = quizData[currentQuestion].question;
-                questionEl.style.animation = 'slideIn 0.8s forwards';
-                
-                // Clear options
-                optionsEl.innerHTML = '';
-                
-                // Create options
-                quizData[currentQuestion].options.forEach((option, index) => {
-                    const optionEl = document.createElement('div');
-                    optionEl.className = 'option';
-                    optionEl.textContent = `${String.fromCharCode(65 + index)}) ${option}`;
-                    optionEl.style.animation = `slideIn 0.8s forwards ${index * 0.2}s`;
-                    optionsEl.appendChild(optionEl);
-                });
-                
-                // Play voice narration for this question
-                playVoiceNarration(currentQuestion);
-                
-                // After 3 seconds, show correct answer
-                timer = setTimeout(() => {
-                    showCorrectAnswer();
-                }, 3000);
-            }
-            
-            // Play voice narration for question
-            function playVoiceNarration(questionIndex) {
-                // In a real implementation, you would have actual voice files
-                // For this demo, we'll simulate voice with a placeholder
-                console.log(`Playing voice for question ${questionIndex + 1}`);
-                
-                // Simulate voice timing
-                setTimeout(() => {
-                    // Question narration
-                    console.log(`Narrating: ${quizData[questionIndex].question}`);
-                    
-                    // Options narration after a delay
-                    setTimeout(() => {
-                        quizData[questionIndex].options.forEach((option, i) => {
-                            setTimeout(() => {
-                                console.log(`Narrating: ${String.fromCharCode(65 + i)}) ${option}`);
-                            }, i * 800);
-                        });
-                    }, 1500);
-                }, 500);
-            }
-            
-            // Show correct answer
-            function showCorrectAnswer() {
-                const correctOption = optionsEl.children[quizData[currentQuestion].correct];
-                correctOption.classList.add('correct');
-                correctOption.style.animation = 'bounce 0.5s, glow 1s infinite';
-                
-                // Play correct sound
-                correctSound.currentTime = 0;
-                correctSound.volume = 0.5;
-                correctSound.play().catch(e => console.log("Audio play failed:", e));
-                
-                // Show reference after a delay
-                setTimeout(() => {
-                    const referenceEl = document.createElement('div');
-                    referenceEl.className = 'option';
-                    referenceEl.textContent = quizData[currentQuestion].reference;
-                    referenceEl.style.background = 'rgba(212, 175, 55, 0.2)';
-                    referenceEl.style.fontSize = '14px';
-                    referenceEl.style.animation = 'slideIn 0.8s forwards';
-                    optionsEl.appendChild(referenceEl);
-                }, 1000);
-                
-                // Move to next question or end quiz
-                currentQuestion++;
-                if (currentQuestion < quizData.length) {
-                    setTimeout(showQuestion, 4000);
-                } else {
-                    // End of quiz
-                    setTimeout(endQuiz, 4000);
-                }
-            }
-            
-            // End quiz
-            function endQuiz() {
-                questionEl.textContent = "Quiz Completed! May your Salah be accepted.";
-                questionEl.style.animation = 'fadeIn 1s forwards';
-                
-                optionsEl.innerHTML = '';
-                
-                progressEl.style.width = '100%';
-                
-                // Fade out background music
-                const fadeAudio = setInterval(() => {
-                    if (bgMusic.volume > 0.1) {
-                        bgMusic.volume -= 0.1;
-                    } else {
-                        bgMusic.pause();
-                        clearInterval(fadeAudio);
-                    }
-                }, 200);
-            }
-            
-            // Download functionality
-            downloadBtn.addEventListener('click', function() {
-                // In a real implementation, this would generate and download a video
-                // For this demo, we'll show an alert
-                alert("In a full implementation, this would download a 45-second MP4 video of the quiz animation. This requires server-side processing or a media recording library.");
-                
-                // Example of how this could work with a media recording library:
-                // 1. Use MediaRecorder API to record the canvas
-                // 2. Combine with audio tracks
-                // 3. Generate and offer download
+            // Reset options
+            optionElements.forEach(opt => {
+                opt.classList.remove('show', 'correct');
             });
             
-            // Start the quiz
-            initQuiz();
+            questionText.textContent = item.question;
+            item.options.forEach((optText, i) => {
+                optionElements[i].textContent = optText;
+            });
+            
+            quizContent.classList.add('visible');
+            await speak(item.question);
+            await delay(500);
+            
+            for (let i = 0; i < item.options.length; i++) {
+                optionElements[i].style.transitionDelay = `${i * 0.2}s`;
+                optionElements[i].classList.add('show');
+                await speak(`${String.fromCharCode(65 + i)}. ${item.options[i]}`);
+                await delay(100);
+            }
+            
+            await delay(1500); // Pause for thought
+            
+            optionElements[item.answer].classList.add('correct');
+            await speak(`The correct answer is. ${item.options[item.answer]}`);
+            
+            await delay(2000); // Let correct answer sink in
+            
+            quizContent.classList.remove('visible');
+            await delay(500);
+        }
+
+        // --- Canvas Background Animation ---
+        const canvas = document.getElementById('background-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let containerRect;
+        
+        function resizeCanvas() {
+            containerRect = canvas.getBoundingClientRect();
+            canvas.width = containerRect.width;
+            canvas.height = containerRect.height;
+        }
+
+        function createParticles() {
+            particles = [];
+            let particleCount = 50;
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 1,
+                    speedX: (Math.random() * 0.4 - 0.2),
+                    speedY: (Math.random() * 0.4 - 0.2),
+                });
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw mosque silhouette at the bottom
+            drawMosque();
+
+            particles.forEach(p => {
+                p.x += p.speedX;
+                p.y += p.speedY;
+
+                if (p.x < 0 || p.x > canvas.width) p.speedX *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.speedY *= -1;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(245, 230, 168, 0.5)';
+                ctx.fill();
+            });
+            
+            if (isAnimating && capturer) {
+                 capturer.capture(canvas);
+            }
+
+            requestAnimationFrame(animateParticles);
+        }
+        
+        function drawMosque() {
+            const w = canvas.width;
+            const h = canvas.height;
+            const baseY = h * 0.95;
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.2)';
+            ctx.lineWidth = 1;
+
+            // Main dome
+            ctx.beginPath();
+            ctx.moveTo(w * 0.3, baseY);
+            ctx.quadraticCurveTo(w * 0.5, h * 0.75, w * 0.7, baseY);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Left minaret
+            ctx.fillRect(w * 0.2, h * 0.8, w * 0.05, h * 0.15);
+            ctx.beginPath();
+            ctx.moveTo(w * 0.19, h*0.8);
+            ctx.quadraticCurveTo(w*0.225, h*0.75, w*0.26, h*0.8);
+            ctx.fill();
+            
+            // Right minaret
+            ctx.fillRect(w * 0.75, h * 0.8, w * 0.05, h * 0.15);
+            ctx.beginPath();
+            ctx.moveTo(w * 0.74, h*0.8);
+            ctx.quadraticCurveTo(w*0.775, h*0.75, w*0.81, h*0.8);
+            ctx.fill();
+        }
+        
+        // --- Event Listeners ---
+        startBtn.addEventListener('click', async () => {
+            if (isAnimating) return;
+            if (Tone.context.state !== 'running') {
+                await setupAudio();
+            }
+            Tone.Transport.start();
+            runAnimationSequence();
         });
+        
+        downloadBtn.addEventListener('click', async () => {
+             if (isAnimating) return;
+             
+             statusEl.textContent = 'Starting recording...';
+             capturer = new CCapture({
+                 format: 'webm',
+                 framerate: 30,
+                 verbose: false,
+                 quality: 90
+             });
+             capturer.start();
+
+            if (Tone.context.state !== 'running') {
+                await setupAudio();
+            }
+            Tone.Transport.start();
+            runAnimationSequence();
+            statusEl.textContent = 'Recording... Animation will play.';
+        });
+
+        // --- Initialization ---
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            createParticles();
+            animateParticles();
+        });
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            createParticles();
+        });
+
     </script>
 </body>
 </html>
+
