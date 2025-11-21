@@ -3,409 +3,590 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Toy to Supercar Transformation</title>
+    <title>Toy Car to Supercar Transformation</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
-        canvas { display: block; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
         
         #ui-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        #controls {
             position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            text-align: center;
-            z-index: 10;
-            pointer-events: none; /* Let clicks pass through except for button */
-        }
-
-        #record-btn {
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
             pointer-events: auto;
-            background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
-            border: none;
-            border-radius: 30px;
-            padding: 15px 40px;
+        }
+        
+        button {
+            background: rgba(0, 30, 60, 0.7);
             color: white;
+            border: 1px solid rgba(100, 150, 255, 0.5);
+            border-radius: 4px;
+            padding: 10px 20px;
             font-size: 16px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
             cursor: pointer;
-            box-shadow: 0 0 20px rgba(0, 210, 255, 0.5);
             transition: all 0.3s ease;
-            outline: none;
+            backdrop-filter: blur(5px);
         }
-
-        #record-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 30px rgba(0, 210, 255, 0.8);
+        
+        button:hover {
+            background: rgba(0, 50, 100, 0.8);
+            border-color: rgba(100, 180, 255, 0.8);
+            transform: translateY(-2px);
         }
-
-        #record-btn.recording {
-            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
-            box-shadow: 0 0 20px rgba(255, 65, 108, 0.5);
-            animation: pulse 1.5s infinite;
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
         }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 65, 108, 0.7); }
-            70% { box-shadow: 0 0 0 15px rgba(255, 65, 108, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 65, 108, 0); }
+        
+        #recording-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 0, 0, 0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: none;
+            backdrop-filter: blur(5px);
+        }
+        
+        #title {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 24px;
+            font-weight: 300;
+            text-shadow: 0 0 10px rgba(0, 150, 255, 0.7);
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: white;
+            font-size: 18px;
+        }
+        
+        .progress-bar {
+            width: 300px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            margin-top: 20px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #0066ff, #00ccff);
+            width: 0%;
+            transition: width 0.3s ease;
         }
     </style>
 </head>
 <body>
-
+    <div id="canvas-container"></div>
+    
     <div id="ui-container">
-        <button id="record-btn">Download Video (15s)</button>
+        <div id="title">Toy Car to Supercar Transformation</div>
+        <div id="recording-indicator">● RECORDING</div>
+        <div id="controls">
+            <button id="record-btn">Record Animation</button>
+            <button id="download-btn" disabled>Download Video</button>
+        </div>
+    </div>
+    
+    <div id="loading">
+        <div>Loading 3D Scene...</div>
+        <div class="progress-bar">
+            <div class="progress" id="progress-bar"></div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
     <script>
-        // --- SCENE SETUP ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505);
-        scene.fog = new THREE.FogExp2(0x050505, 0.02);
-
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(8, 5, 8);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.2;
-        document.body.appendChild(renderer.domElement);
-
-        // --- LIGHTING ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-        scene.add(ambientLight);
-
-        const mainSpot = new THREE.SpotLight(0xffffff, 2);
-        mainSpot.position.set(10, 20, 10);
-        mainSpot.castShadow = true;
-        mainSpot.shadow.mapSize.width = 2048;
-        mainSpot.shadow.mapSize.height = 2048;
-        scene.add(mainSpot);
-
-        // Cinematic Blue Rim Light
-        const blueLight = new THREE.PointLight(0x0088ff, 2, 20);
-        blueLight.position.set(-5, 2, -5);
-        scene.add(blueLight);
-
-        // Warm Rim Light
-        const warmLight = new THREE.PointLight(0xffaa00, 1, 20);
-        warmLight.position.set(5, 2, 5);
-        scene.add(warmLight);
-
-        // --- MATERIALS ---
-        // We will modify these properties during animation
-        const paintMaterial = new THREE.MeshPhysicalMaterial({
-            color: 0xff0000, // Toy Red
-            metalness: 0.0, // Plastic
-            roughness: 0.4, // Slightly glossy plastic
-            clearcoat: 0.5,
-            clearcoatRoughness: 0.1
-        });
-
-        const darkMaterial = new THREE.MeshStandardMaterial({
-            color: 0x111111,
-            metalness: 0.0,
-            roughness: 0.8
-        });
-
-        const glowMaterial = new THREE.MeshBasicMaterial({
-            color: 0x00ffff,
-            transparent: true,
-            opacity: 0
-        });
-
-        const outlineMaterial = new THREE.LineBasicMaterial({ 
-            color: 0x00ffff, 
-            transparent: true, 
-            opacity: 0,
-            blending: THREE.AdditiveBlending
-        });
-
-        // --- GEOMETRY CONSTRUCTION (PROCEDURAL CAR) ---
-        const carGroup = new THREE.Group();
-        scene.add(carGroup);
-
-        // 1. Main Chassis
-        const chassisGeo = new THREE.BoxGeometry(1.8, 0.5, 4);
-        const chassis = new THREE.Mesh(chassisGeo, paintMaterial);
-        chassis.castShadow = true;
-        chassis.position.y = 0.5;
-        carGroup.add(chassis);
-
-        // Add Outline to Chassis
-        const edges = new THREE.EdgesGeometry(chassisGeo);
-        const lineLoop = new THREE.LineSegments(edges, outlineMaterial);
-        chassis.add(lineLoop);
-
-        // 2. Cabin (Top)
-        const cabinGeo = new THREE.BoxGeometry(1.4, 0.4, 2);
-        const cabin = new THREE.Mesh(cabinGeo, darkMaterial);
-        cabin.position.set(0, 0.5, -0.2);
-        cabin.castShadow = true;
-        chassis.add(cabin);
-
-        // 3. Side Panels (Expandable)
-        const panelGeo = new THREE.BoxGeometry(0.2, 0.4, 2.5);
-        const leftPanel = new THREE.Mesh(panelGeo, paintMaterial);
-        const rightPanel = new THREE.Mesh(panelGeo, paintMaterial);
-        leftPanel.position.set(-1.0, 0, 0);
-        rightPanel.position.set(1.0, 0, 0);
-        chassis.add(leftPanel);
-        chassis.add(rightPanel);
-
-        // 4. Spoiler (Pop up)
-        const spoilerGeo = new THREE.BoxGeometry(2, 0.1, 0.5);
-        const spoiler = new THREE.Mesh(spoilerGeo, paintMaterial);
-        spoiler.position.set(0, 0.3, 1.8);
-        chassis.add(spoiler);
-
-        // 5. Headlights
-        const lightGeo = new THREE.BoxGeometry(0.4, 0.1, 0.1);
-        const leftLight = new THREE.Mesh(lightGeo, glowMaterial);
-        const rightLight = new THREE.Mesh(lightGeo, glowMaterial);
-        leftLight.position.set(-0.6, 0.1, -2.01);
-        rightLight.position.set(0.6, 0.1, -2.01);
-        chassis.add(leftLight);
-        chassis.add(rightLight);
-
-        // 6. Wheels
-        const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 32);
-        wheelGeo.rotateZ(Math.PI / 2);
-        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+        // Main application variables
+        let scene, camera, renderer, car, table;
+        let clock = new THREE.Clock();
+        let isRecording = false;
+        let mediaRecorder;
+        let recordedChunks = [];
+        let animationPhase = 0; // 0: Toy car, 1: Transforming, 2: Supercar, 3: Reverting
+        let transformProgress = 0;
+        let cameraOrbitRadius = 5;
+        let cameraOrbitAngle = 0;
+        let carScale = 1;
+        let carMaterials = [];
+        let outlinePass;
+        let composer;
+        let particleSystem;
         
-        const wheels = [];
-        function createWheel(x, z) {
-            const w = new THREE.Mesh(wheelGeo, wheelMat);
-            w.position.set(x, 0.4, z);
-            w.castShadow = true;
-            carGroup.add(w);
-            wheels.push(w);
-            return w;
+        // Initialize the scene
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x050510);
+            scene.fog = new THREE.Fog(0x050510, 10, 25);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 3, 8);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.physicallyCorrectLights = true;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // Add lighting
+            setupLighting();
+            
+            // Create environment
+            createEnvironment();
+            
+            // Create the car
+            createCar();
+            
+            // Create particle system
+            createParticles();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Setup recording functionality
+            setupRecording();
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+            }, 1500);
+            
+            // Start animation loop
+            animate();
         }
-        createWheel(-1, -1.2);
-        createWheel(1, -1.2);
-        createWheel(-1, 1.2);
-        createWheel(1, 1.2);
-
-        // --- ENVIRONMENT (REFLECTIVE FLOOR) ---
-        const planeGeo = new THREE.PlaneGeometry(50, 50);
-        const planeMat = new THREE.MeshStandardMaterial({ 
-            color: 0x101010, 
-            metalness: 0.8, 
-            roughness: 0.1 
-        });
-        const floor = new THREE.Mesh(planeGeo, planeMat);
-        floor.rotation.x = -Math.PI / 2;
-        floor.receiveShadow = true;
-        scene.add(floor);
-
-        // --- PARTICLE SYSTEM (EXHAUST) ---
-        const particleCount = 100;
-        const particlesGeo = new THREE.BufferGeometry();
-        const pPos = new Float32Array(particleCount * 3);
-        const pVel = []; // Velocity storage
         
-        for(let i=0; i<particleCount; i++) {
-            pPos[i*3] = 0; pPos[i*3+1] = 0; pPos[i*3+2] = 0;
-            pVel.push({x:0, y:0, z:0, life: 0});
+        function setupLighting() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x404060, 0.3);
+            scene.add(ambientLight);
+            
+            // Main directional light (simulating soft cinematic lighting)
+            const mainLight = new THREE.DirectionalLight(0xfff0e0, 1.2);
+            mainLight.position.set(5, 10, 7);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 2048;
+            mainLight.shadow.mapSize.height = 2048;
+            mainLight.shadow.camera.near = 0.5;
+            mainLight.shadow.camera.far = 50;
+            mainLight.shadow.camera.left = -10;
+            mainLight.shadow.camera.right = 10;
+            mainLight.shadow.camera.top = 10;
+            mainLight.shadow.camera.bottom = -10;
+            scene.add(mainLight);
+            
+            // Fill light
+            const fillLight = new THREE.DirectionalLight(0x4060ff, 0.4);
+            fillLight.position.set(-5, 5, -5);
+            scene.add(fillLight);
+            
+            // Rim light
+            const rimLight = new THREE.DirectionalLight(0xff60a0, 0.5);
+            rimLight.position.set(0, 5, -10);
+            scene.add(rimLight);
         }
-        particlesGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
         
-        const particleMat = new THREE.PointsMaterial({
-            color: 0x00aaff,
-            size: 0.1,
-            transparent: true,
-            opacity: 0,
-            blending: THREE.AdditiveBlending
-        });
-        const particleSystem = new THREE.Points(particlesGeo, particleMat);
-        scene.add(particleSystem);
-
-        // --- ANIMATION VARIABLES ---
-        let time = 0;
-        const duration = 8; // Seconds for full loop
+        function createEnvironment() {
+            // Create reflective table surface
+            const tableGeometry = new THREE.CylinderGeometry(6, 7, 0.5, 32);
+            const tableMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x202030,
+                metalness: 0.1,
+                roughness: 0.05,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.1,
+                reflectivity: 1.0
+            });
+            
+            table = new THREE.Mesh(tableGeometry, tableMaterial);
+            table.position.y = -1;
+            table.receiveShadow = true;
+            scene.add(table);
+            
+            // Add subtle environment reflection
+            const cubeTextureLoader = new THREE.CubeTextureLoader();
+            const envMap = cubeTextureLoader.load([
+                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+            ]);
+            scene.background = envMap;
+            scene.environment = envMap;
+        }
         
-        // --- ANIMATION LOOP ---
+        function createCar() {
+            // Create a group to hold the car
+            car = new THREE.Group();
+            scene.add(car);
+            
+            // Car body - starting as a simple toy car shape
+            const bodyGeometry = new THREE.BoxGeometry(2, 0.5, 4);
+            const toyMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xff3366,
+                metalness: 0.1,
+                roughness: 0.8,
+                clearcoat: 0.5,
+                clearcoatRoughness: 0.3
+            });
+            
+            const carBody = new THREE.Mesh(bodyGeometry, toyMaterial);
+            carBody.castShadow = true;
+            carBody.receiveShadow = true;
+            car.add(carBody);
+            
+            // Car cabin
+            const cabinGeometry = new THREE.BoxGeometry(1.5, 0.6, 1.5);
+            const cabin = new THREE.Mesh(cabinGeometry, toyMaterial);
+            cabin.position.y = 0.55;
+            cabin.position.z = -0.5;
+            cabin.castShadow = true;
+            car.add(cabin);
+            
+            // Wheels
+            const wheelGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16);
+            const wheelMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x333333,
+                metalness: 0.3,
+                roughness: 0.7
+            });
+            
+            for (let i = 0; i < 4; i++) {
+                const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                wheel.rotation.z = Math.PI / 2;
+                
+                if (i < 2) {
+                    wheel.position.set(i === 0 ? -0.8 : 0.8, -0.25, -1.2);
+                } else {
+                    wheel.position.set(i === 2 ? -0.8 : 0.8, -0.25, 1.2);
+                }
+                
+                wheel.castShadow = true;
+                car.add(wheel);
+            }
+            
+            // Store materials for transformation
+            carMaterials.push(toyMaterial);
+            carMaterials.push(wheelMaterial);
+            
+            // Position the car
+            car.position.y = 0.5;
+        }
+        
+        function createParticles() {
+            const particleCount = 100;
+            const particles = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                // Random positions around the car
+                positions[i3] = (Math.random() - 0.5) * 10;
+                positions[i3 + 1] = Math.random() * 5;
+                positions[i3 + 2] = (Math.random() - 0.5) * 10;
+                
+                // Blue-ish colors
+                colors[i3] = 0.2 + Math.random() * 0.3;
+                colors[i3 + 1] = 0.5 + Math.random() * 0.5;
+                colors[i3 + 2] = 0.8 + Math.random() * 0.2;
+            }
+            
+            particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            const particleMaterial = new THREE.PointsMaterial({
+                size: 0.05,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6
+            });
+            
+            particleSystem = new THREE.Points(particles, particleMaterial);
+            scene.add(particleSystem);
+        }
+        
+        function animateParticles() {
+            const positions = particleSystem.geometry.attributes.position.array;
+            
+            for (let i = 0; i < positions.length; i += 3) {
+                // Simple floating animation
+                positions[i + 1] += 0.005;
+                
+                // Reset particles that go too high
+                if (positions[i + 1] > 5) {
+                    positions[i + 1] = 0;
+                    positions[i] = (Math.random() - 0.5) * 10;
+                    positions[i + 2] = (Math.random() - 0.5) * 10;
+                }
+            }
+            
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+        }
+        
+        function updateTransformation() {
+            const delta = clock.getDelta();
+            
+            // Update animation phase
+            if (animationPhase === 0) {
+                // Toy car phase - just orbiting camera
+                transformProgress = 0;
+                cameraOrbitAngle += delta * 0.2;
+                
+                // After a while, start transformation
+                if (cameraOrbitAngle > Math.PI * 2) {
+                    animationPhase = 1;
+                    cameraOrbitAngle = 0;
+                }
+            } else if (animationPhase === 1) {
+                // Transformation phase
+                transformProgress += delta * 0.2;
+                
+                if (transformProgress >= 1) {
+                    transformProgress = 1;
+                    animationPhase = 2;
+                    
+                    // Simulate exhaust burst
+                    setTimeout(() => {
+                        // Camera pull back
+                        cameraOrbitRadius = 8;
+                    }, 500);
+                }
+            } else if (animationPhase === 2) {
+                // Supercar phase - hold for a moment
+                transformProgress = 1;
+                cameraOrbitAngle += delta * 0.1;
+                
+                // After a while, start reverting
+                if (cameraOrbitAngle > Math.PI) {
+                    animationPhase = 3;
+                }
+            } else if (animationPhase === 3) {
+                // Reverting phase
+                transformProgress -= delta * 0.2;
+                
+                if (transformProgress <= 0) {
+                    transformProgress = 0;
+                    animationPhase = 0;
+                    cameraOrbitRadius = 5;
+                }
+            }
+            
+            // Apply transformation to car
+            carScale = 0.5 + transformProgress * 1.5;
+            car.scale.set(carScale, carScale, carScale);
+            
+            // Update materials based on transformation progress
+            carMaterials.forEach(material => {
+                if (material === carMaterials[0]) { // Body material
+                    material.color.lerp(new THREE.Color(
+                        transformProgress > 0.5 ? 0x0066ff : 0xff3366
+                    ), delta * 2);
+                    material.metalness = 0.1 + transformProgress * 0.8;
+                    material.roughness = 0.8 - transformProgress * 0.7;
+                    material.clearcoat = 0.5 + transformProgress * 0.5;
+                }
+            });
+            
+            // Update camera position based on orbit
+            camera.position.x = Math.sin(cameraOrbitAngle) * cameraOrbitRadius;
+            camera.position.z = Math.cos(cameraOrbitAngle) * cameraOrbitRadius;
+            camera.position.y = 2 + Math.sin(cameraOrbitAngle * 0.5) * 0.5;
+            camera.lookAt(0, 0.5, 0);
+        }
+        
         function animate() {
             requestAnimationFrame(animate);
             
-            const dt = 0.016;
-            time += dt;
+            updateTransformation();
+            animateParticles();
             
-            // Normalized time (0 to 1) over the loop duration
-            let t = (time % duration) / duration;
-            
-            // Animation Phases based on 't'
-            // 0.0 - 0.15: Toy Idle
-            // 0.15 - 0.4: Transform (Expand)
-            // 0.4 - 0.6: Supercar Idle (Rev)
-            // 0.6 - 0.85: Transform (Shrink)
-            // 0.85 - 1.0: Toy Idle
-
-            let morphFactor = 0;
-            
-            if (t > 0.15 && t <= 0.4) {
-                morphFactor = (t - 0.15) / 0.25; // 0 to 1
-                morphFactor = easeInOutCubic(morphFactor);
-            } else if (t > 0.4 && t <= 0.6) {
-                morphFactor = 1;
-            } else if (t > 0.6 && t <= 0.85) {
-                morphFactor = 1 - ((t - 0.6) / 0.25); // 1 to 0
-                morphFactor = easeInOutCubic(morphFactor);
-            }
-
-            // 1. Camera Orbit
-            const camRadius = 9 + (morphFactor * 3); // Camera pulls back as car grows
-            const camSpeed = time * 0.5;
-            camera.position.x = Math.cos(camSpeed) * camRadius;
-            camera.position.z = Math.sin(camSpeed) * camRadius;
-            camera.lookAt(0, 1 + morphFactor, 0);
-
-            // 2. Material Transition (Plastic -> Chrome/Carbon)
-            paintMaterial.metalness = morphFactor; // 0 -> 1
-            paintMaterial.roughness = 0.4 - (morphFactor * 0.3); // 0.4 -> 0.1
-            paintMaterial.color.setHSL(0, 1, 0.5 - (morphFactor * 0.4)); // Red -> Dark Metallic
-            
-            // 3. Geometry Transformation
-            const scale = 1 + morphFactor; // 1x to 2x scale
-            carGroup.scale.setScalar(scale);
-            
-            // Expand Parts
-            leftPanel.position.x = -1.0 - (morphFactor * 0.3);
-            rightPanel.position.x = 1.0 + (morphFactor * 0.3);
-            spoiler.position.y = 0.3 + (morphFactor * 0.4); // Spoiler rises
-            
-            // Wheels widen
-            wheels[0].position.x = (-1 - (morphFactor * 0.4));
-            wheels[1].position.x = (1 + (morphFactor * 0.4));
-            wheels[2].position.x = (-1 - (morphFactor * 0.4));
-            wheels[3].position.x = (1 + (morphFactor * 0.4));
-
-            // 4. Neon/Hologram Outline
-            // Flash outline at start of transformation
-            let outlineOpacity = 0;
-            if(t > 0.1 && t < 0.2) outlineOpacity = (t - 0.1) * 10; 
-            if(t >= 0.2 && t < 0.4) outlineOpacity = 1 - ((t - 0.2) * 5);
-            outlineMaterial.opacity = outlineOpacity;
-
-            // 5. Lights Glow
-            glowMaterial.opacity = morphFactor;
-
-            // 6. Exhaust Particles
-            // Only emit when full supercar (0.4 - 0.6)
-            if (morphFactor > 0.9) {
-                particleMat.opacity = 0.8;
-                updateParticles(true, scale);
-                // Slight vibration (Engine Rev)
-                carGroup.position.y = (Math.sin(time * 50) * 0.02 * scale);
-            } else {
-                particleMat.opacity *= 0.95; // Fade out
-                updateParticles(false, scale);
-                carGroup.position.y = 0;
-            }
-
             renderer.render(scene, camera);
         }
-
-        function easeInOutCubic(x) {
-            return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-        }
-
-        function updateParticles(emitting, scale) {
-            const positions = particleSystem.geometry.attributes.position.array;
-            
-            for(let i=0; i < particleCount; i++) {
-                const ix = i * 3;
-                
-                // Update physics
-                positions[ix] += pVel[i].x;
-                positions[ix+1] += pVel[i].y;
-                positions[ix+2] += pVel[i].z;
-                pVel[i].life -= 0.02;
-
-                // Reset if dead and emitting
-                if (pVel[i].life <= 0 && emitting) {
-                    positions[ix] = (Math.random() - 0.5) * 0.5 * scale; // x near center
-                    positions[ix+1] = 0.5 * scale; // y exhaust height
-                    positions[ix+2] = 2.0 * scale; // z back of car
-                    
-                    pVel[i].x = (Math.random() - 0.5) * 0.05;
-                    pVel[i].y = (Math.random() * 0.05);
-                    pVel[i].z = 0.1 + Math.random() * 0.1; // Shoot back
-                    pVel[i].life = 1.0;
-                } else if (pVel[i].life <= 0) {
-                    // Hide
-                    positions[ix+1] = -1000; 
-                }
-            }
-            particleSystem.geometry.attributes.position.needsUpdate = true;
-        }
-
-        animate();
-
-        // --- RECORDING FUNCTIONALITY ---
-        const btn = document.getElementById('record-btn');
         
-        btn.addEventListener('click', () => {
-            if (btn.classList.contains('recording')) return;
-
-            startRecording();
-        });
-
-        function startRecording() {
-            btn.textContent = "Recording...";
-            btn.classList.add('recording');
-
-            const canvas = document.querySelector('canvas');
-            // Capture stream at 60 FPS
-            const stream = canvas.captureStream(60);
-            
-            // Prefer VP9 for high quality, fallback to VP8
-            const mimeTypes = ['video/webm; codecs=vp9', 'video/webm; codecs=vp8', 'video/webm'];
-            let selectedMime = mimeTypes.find(mime => MediaRecorder.isTypeSupported(mime));
-
-            const recorder = new MediaRecorder(stream, {
-                mimeType: selectedMime,
-                videoBitsPerSecond: 25000000 // 25 Mbps for high quality
-            });
-
-            const chunks = [];
-            recorder.ondataavailable = e => chunks.push(e.data);
-            
-            recorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'supercar_transform.webm';
-                a.click();
-                URL.revokeObjectURL(url);
-                
-                btn.textContent = "Download Video (15s)";
-                btn.classList.remove('recording');
-            };
-
-            recorder.start();
-
-            // Record for 15 seconds (approx 2 loops)
-            setTimeout(() => {
-                recorder.stop();
-            }, 15000);
-        }
-
-        // Handle window resize
-        window.addEventListener('resize', () => {
+        function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        }
+        
+        // Recording functionality
+        function setupRecording() {
+            const recordBtn = document.getElementById('record-btn');
+            const downloadBtn = document.getElementById('download-btn');
+            const recordingIndicator = document.getElementById('recording-indicator');
+            
+            recordBtn.addEventListener('click', startRecording);
+            downloadBtn.addEventListener('click', downloadRecording);
+        }
+        
+        function startRecording() {
+            if (isRecording) return;
+            
+            const recordBtn = document.getElementById('record-btn');
+            const downloadBtn = document.getElementById('download-btn');
+            const recordingIndicator = document.getElementById('recording-indicator');
+            
+            isRecording = true;
+            recordedChunks = [];
+            recordBtn.disabled = true;
+            recordingIndicator.style.display = 'block';
+            
+            // Get the canvas stream
+            const canvasStream = renderer.domElement.captureStream(60);
+            
+            // Set up media recorder
+            const options = {
+                mimeType: 'video/webm; codecs=vp9',
+                videoBitsPerSecond: 8000000 // 8 Mbps for high quality
+            };
+            
+            try {
+                mediaRecorder = new MediaRecorder(canvasStream, options);
+            } catch (e) {
+                console.error('MediaRecorder error:', e);
+                // Fallback to VP8
+                options.mimeType = 'video/webm; codecs=vp8';
+                try {
+                    mediaRecorder = new MediaRecorder(canvasStream, options);
+                } catch (e2) {
+                    console.error('MediaRecorder fallback error:', e2);
+                    alert('Recording not supported in this browser');
+                    resetRecordingState();
+                    return;
+                }
+            }
+            
+            mediaRecorder.ondataavailable = handleDataAvailable;
+            mediaRecorder.onstop = handleStop;
+            
+            // Start recording
+            mediaRecorder.start();
+            
+            // Stop recording after 15 seconds
+            setTimeout(() => {
+                if (isRecording) {
+                    mediaRecorder.stop();
+                    isRecording = false;
+                    recordingIndicator.style.display = 'none';
+                    downloadBtn.disabled = false;
+                }
+            }, 15000);
+        }
+        
+        function handleDataAvailable(event) {
+            if (event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        }
+        
+        function handleStop() {
+            recordBtn.disabled = false;
+        }
+        
+        function downloadRecording() {
+            const blob = new Blob(recordedChunks, {
+                type: 'video/webm'
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'car-transformation.webm';
+            document.body.appendChild(a);
+            a.click();
+            
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+        }
+        
+        function resetRecordingState() {
+            isRecording = false;
+            recordBtn.disabled = false;
+            recordingIndicator.style.display = 'none';
+        }
+        
+        // Simulate loading progress
+        function simulateLoading() {
+            const progressBar = document.getElementById('progress-bar');
+            let width = 0;
+            
+            const interval = setInterval(() => {
+                width += Math.random() * 10;
+                if (width >= 100) {
+                    width = 100;
+                    clearInterval(interval);
+                }
+                progressBar.style.width = width + '%';
+            }, 200);
+        }
+        
+        // Start the application
+        simulateLoading();
+        window.onload = init;
     </script>
 </body>
 </html>
