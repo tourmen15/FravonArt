@@ -2,429 +2,339 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Cyberpunk Cube Unfolding</title>
+    <title>Toy to Supercar Transformation</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; }
-        canvas { display: block; }
-        #loading {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #0ff; font-family: monospace; font-size: 24px; pointer-events: none;
+        body {
+            margin: 0;
+            background-color: #050505;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* We fix the canvas resolution to 1920x1080, 
+           but use CSS to ensure it fits on smaller screens 
+           while maintaining aspect ratio.
+        */
+        canvas {
+            background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364);
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.2);
+            max-width: 100%;
+            max-height: 100vh;
+            aspect-ratio: 16/9;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            pointer-events: none;
         }
     </style>
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
 </head>
 <body>
-    <div id="loading">SYSTEM INITIALIZING...</div>
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
+    <canvas id="stage" width="1920" height="1080"></canvas>
+    
+    <div id="ui-layer">
+        <h1>Project: TRANSFORMATION</h1>
+        <p>Status: <span id="status-text">Toy Mode</span></p>
+    </div>
+
+    <script>
         // --- CONFIGURATION ---
-        const ANIMATION_SPEED = 0.005;
-        const UNFOLD_START_TIME = 3.0; // Seconds before unfolding starts
-        const CITY_SIZE = 20; // Number of buildings
-        const CUBE_SIZE = 4; 
+        const canvas = document.getElementById('stage');
+        const ctx = canvas.getContext('2d');
+        const statusText = document.getElementById('status-text');
 
-        // --- SCENE SETUP ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505);
-        scene.fog = new THREE.FogExp2(0x050505, 0.02);
+        // Animation State
+        let frame = 0;
+        let morphFactor = 0; // 0 = Toy, 1 = Supercar
+        let direction = 1;   // 1 = Transforming up, -1 = Reverting
+        let isPaused = false;
+        
+        // Scenery scrolling speed
+        let roadOffset = 0;
+        
+        // --- HELPER FUNCTIONS ---
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(8, 6, 8);
+        // Linear Interpolation: Finds the number between 'start' and 'end' based on 't' (0 to 1)
+        function lerp(start, end, t) {
+            return start * (1 - t) + end * t;
+        }
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        document.body.appendChild(renderer.domElement);
+        // Ease in-out function for smoother animation
+        function easeInOutQuad(t) {
+            return t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        }
 
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.autoRotate = true;
-        controls.autoRotateSpeed = 0.5;
+        // --- DRAWING FUNCTIONS ---
 
-        // --- TEXTURE GENERATION (PROCEDURAL) ---
-        // Helper to create tech-looking textures without external images
-        function createTechTexture(color, segments) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512; canvas.height = 512;
-            const ctx = canvas.getContext('2d');
+        function drawBackground(t) {
+            // Sky Gradient change
+            const r1 = lerp(135, 10, t); // Light blue to Dark Night
+            const g1 = lerp(206, 10, t);
+            const b1 = lerp(235, 30, t);
             
-            // Background
-            ctx.fillStyle = '#111';
-            ctx.fillRect(0, 0, 512, 512);
+            // Draw Sky
+            let grad = ctx.createLinearGradient(0, 0, 0, 600);
+            grad.addColorStop(0, `rgb(${r1}, ${g1}, ${b1})`);
+            grad.addColorStop(1, `rgb(${r1*0.5}, ${g1*0.5}, ${b1*0.5})`);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 1920, 600);
+
+            // Draw Sun / Moon
+            const sunY = lerp(100, 800, t); // Sun sets
+            const moonY = lerp(-200, 100, t); // Moon rises
             
-            // Grid lines
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 4;
+            // Sun
             ctx.beginPath();
-            for(let i=0; i<=segments; i++) {
-                const pos = (i/segments) * 512;
-                ctx.moveTo(pos, 0); ctx.lineTo(pos, 512);
-                ctx.moveTo(0, pos); ctx.lineTo(512, pos);
+            ctx.arc(1700, sunY, 60, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFD700';
+            ctx.fill();
+
+            // Moon
+            ctx.beginPath();
+            ctx.arc(1700, moonY, 50, 0, Math.PI * 2);
+            ctx.fillStyle = '#FFF';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#FFF';
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+
+        function drawRoad(speedMultiplier) {
+            // Ground
+            ctx.fillStyle = '#222';
+            ctx.fillRect(0, 600, 1920, 480);
+
+            // Horizon Line
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 595, 1920, 5);
+
+            // Moving Road Lines
+            ctx.fillStyle = '#FFF';
+            let speed = 20 * speedMultiplier; 
+            roadOffset = (roadOffset - speed) % 200;
+
+            // Perspective road effect
+            ctx.save();
+            ctx.beginPath();
+            // Clip to road area
+            ctx.rect(0, 600, 1920, 480);
+            ctx.clip();
+
+            for(let i = -200; i < 2200; i += 200) {
+                let x = i + roadOffset;
+                // Skew logic for speed lines
+                ctx.fillRect(x, 800, 100, 20);
             }
-            ctx.stroke();
-
-            // Random tech details
-            ctx.fillStyle = color;
-            for(let i=0; i<10; i++) {
-                const x = Math.floor(Math.random() * segments) * (512/segments) + 10;
-                const y = Math.floor(Math.random() * segments) * (512/segments) + 10;
-                ctx.fillRect(x, y, (512/segments)-20, (512/segments)-20);
-            }
-
-            const tex = new THREE.CanvasTexture(canvas);
-            tex.wrapS = THREE.RepeatWrapping;
-            tex.wrapT = THREE.RepeatWrapping;
-            return tex;
+            ctx.restore();
         }
 
-        function createBuildingTexture() {
-            const canvas = document.createElement('canvas');
-            canvas.width = 128; canvas.height = 256;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#050505';
-            ctx.fillRect(0,0,128,256);
+        function drawCar(t) {
+            const centerX = 960;
+            const centerY = 750;
+
+            // --- INTERPOLATION VALUES (The Morph) ---
             
-            // Windows
-            ctx.fillStyle = Math.random() > 0.5 ? '#0ff' : '#f0f'; // Cyan or Magenta
-            for(let y=10; y<250; y+=20) {
-                if(Math.random() > 0.3) {
-                    for(let x=10; x<110; x+=20) {
-                        if(Math.random() > 0.2) ctx.fillRect(x, y, 10, 10);
-                    }
-                }
-            }
-            return new THREE.CanvasTexture(canvas);
-        }
+            // Dimensions
+            const width = lerp(400, 700, t);       // Toy is short, Supercar is long
+            const height = lerp(250, 140, t);      // Toy is tall, Supercar is low
+            const roofCurve = lerp(0, 80, t);      // Toy is boxy, Supercar is curvy
+            const wheelSize = lerp(60, 85, t);     // Wheel radius
+            const wheelSpacing = lerp(220, 450, t);// Wheelbase
+            const groundClearance = lerp(50, 30, t);
 
-        // --- LIGHTING ---
-        const ambientLight = new THREE.AmbientLight(0x404040, 1);
-        scene.add(ambientLight);
-
-        const spotLight = new THREE.SpotLight(0xffffff, 50);
-        spotLight.position.set(10, 20, 10);
-        spotLight.angle = Math.PI / 4;
-        spotLight.penumbra = 0.5;
-        spotLight.castShadow = true;
-        scene.add(spotLight);
-
-        // Neon Point Lights (Cyan and Magenta)
-        const light1 = new THREE.PointLight(0x00ffff, 2, 20);
-        light1.position.set(2, 3, 2);
-        scene.add(light1);
-
-        const light2 = new THREE.PointLight(0xff00ff, 2, 20);
-        light2.position.set(-2, 1, -2);
-        scene.add(light2);
-
-        // --- OBJECTS ---
-
-        // 1. Reflective Floor
-        const planeGeometry = new THREE.PlaneGeometry(100, 100);
-        const planeMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x000000,
-            roughness: 0.1,
-            metalness: 0.8
-        });
-        const floor = new THREE.Mesh(planeGeometry, planeMaterial);
-        floor.rotation.x = - Math.PI / 2;
-        floor.position.y = -2.1; // Slightly below the cube
-        floor.receiveShadow = true;
-        scene.add(floor);
-
-        // Floor Grid
-        const gridHelper = new THREE.GridHelper(100, 100, 0x00ffff, 0x222222);
-        gridHelper.position.y = -2.09;
-        scene.add(gridHelper);
-
-        // 2. Ambient Particles
-        const particlesGeometry = new THREE.BufferGeometry();
-        const particleCount = 2000;
-        const posArray = new Float32Array(particleCount * 3);
-        for(let i = 0; i < particleCount * 3; i++) {
-            posArray[i] = (Math.random() - 0.5) * 60;
-        }
-        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-        const particlesMaterial = new THREE.PointsMaterial({
-            size: 0.05,
-            color: 0xffffff,
-            transparent: true, 
-            opacity: 0.5
-        });
-        const particleSystem = new THREE.Points(particlesGeometry, particlesMaterial);
-        scene.add(particleSystem);
-
-        // 3. The Cube Shell (The Container)
-        const shellGroup = new THREE.Group();
-        scene.add(shellGroup);
-
-        const shellMat = new THREE.MeshStandardMaterial({
-            color: 0x111111,
-            metalness: 0.9,
-            roughness: 0.2,
-            map: createTechTexture('#004444', 4),
-            emissive: 0x001111,
-            side: THREE.DoubleSide
-        });
-
-        // We create 6 separate planes so we can rotate them individually like a flower opening
-        const panels = [];
-        const panelGeo = new THREE.PlaneGeometry(CUBE_SIZE, CUBE_SIZE);
-
-        // Helper to build a panel
-        function createPanel(x, y, z, rx, ry, rz, axis, dir) {
-            const mesh = new THREE.Mesh(panelGeo, shellMat);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
+            // Color Transition
+            const toyColor = 'rgb(220, 50, 50)'; // Flat Red
+            // For supercar, we construct a gradient later, but base color is darker red
             
-            // Create a pivot group to handle the "hinge" rotation
-            const pivot = new THREE.Group();
-            pivot.position.set(x, y, z); // Position the hinge
+            const startX = centerX - (width / 2);
+            const startY = centerY - groundClearance;
+
+            ctx.save();
+
+            // 1. THE BODY SHAPE
+            ctx.beginPath();
             
-            // Offset mesh so it rotates around the edge
-            mesh.position.set(0, 0, 0); 
-            mesh.rotation.set(rx, ry, rz);
+            // Rear Bumper
+            ctx.moveTo(startX, startY); 
+            ctx.lineTo(startX, startY - height * 0.4); 
             
-            // Initial position logic is tricky. 
-            // We want them to form a cube centered at 0,0,0.
-            // But we want them hinged at the *bottom* (or relevant edge) relative to the floor.
-            // Simplification: The Bottom panel is static. The Top, Front, Back, Left, Right rotate.
+            // Roof / Cabin
+            // Interpolating control points for Bezier curve
+            const c1x = startX + width * 0.2;
+            const c1y = startY - height * (lerp(1.2, 0.8, t)); // Roof height
+            const c2x = startX + width * 0.8;
+            const c2y = startY - height * (lerp(1.2, 0.9, t));
+
+            // Top line (Windshield to Rear window)
+            ctx.bezierCurveTo(c1x, c1y, c2x, c2y, startX + width, startY - height * 0.3);
+
+            // Front Bumper
+            ctx.lineTo(startX + width, startY);
             
-            return { pivot, mesh, axis, dir };
-        }
-        
-        // Bottom (Static base)
-        const basePanel = new THREE.Mesh(panelGeo, shellMat);
-        basePanel.rotation.x = -Math.PI/2;
-        basePanel.position.y = -CUBE_SIZE/2;
-        shellGroup.add(basePanel);
-
-        // For the other 5 faces, we create pivot groups attached to the basePanel's edges
-        // Side panels hinge at the bottom edge (-y)
-        const pivots = [];
-
-        // Front
-        const pFront = new THREE.Group();
-        pFront.position.set(0, 0, CUBE_SIZE/2); 
-        const mFront = new THREE.Mesh(panelGeo, shellMat);
-        mFront.position.set(0, CUBE_SIZE/2, 0); // Shift up relative to hinge
-        pFront.add(mFront);
-        basePanel.add(pFront);
-        pivots.push({ obj: pFront, axis: 'x', target: Math.PI/2 });
-
-        // Back
-        const pBack = new THREE.Group();
-        pBack.position.set(0, 0, -CUBE_SIZE/2);
-        const mBack = new THREE.Mesh(panelGeo, shellMat);
-        mBack.position.set(0, CUBE_SIZE/2, 0);
-        mBack.rotation.y = Math.PI;
-        pBack.add(mBack);
-        basePanel.add(pBack);
-        pivots.push({ obj: pBack, axis: 'x', target: -Math.PI/2 });
-
-        // Left
-        const pLeft = new THREE.Group();
-        pLeft.position.set(-CUBE_SIZE/2, 0, 0);
-        const mLeft = new THREE.Mesh(panelGeo, shellMat);
-        mLeft.position.set(0, CUBE_SIZE/2, 0);
-        mLeft.rotation.y = -Math.PI/2;
-        pLeft.add(mLeft);
-        basePanel.add(pLeft);
-        pivots.push({ obj: pLeft, axis: 'z', target: -Math.PI/2 });
-
-        // Right
-        const pRight = new THREE.Group();
-        pRight.position.set(CUBE_SIZE/2, 0, 0);
-        const mRight = new THREE.Mesh(panelGeo, shellMat);
-        mRight.position.set(0, CUBE_SIZE/2, 0);
-        mRight.rotation.y = Math.PI/2;
-        pRight.add(mRight);
-        basePanel.add(pRight);
-        pivots.push({ obj: pRight, axis: 'z', target: Math.PI/2 });
-
-        // Top - attached to Back panel for complex unfolding, 
-        // OR simpler: attached to Front panel? 
-        // Let's attach top to the Back panel's top edge.
-        const pTop = new THREE.Group();
-        pTop.position.set(0, CUBE_SIZE, 0); // Top of the Back panel mesh
-        const mTop = new THREE.Mesh(panelGeo, shellMat);
-        mTop.position.set(0, CUBE_SIZE/2, 0);
-        mTop.rotation.x = -Math.PI/2; // Face up
-        pTop.add(mTop);
-        mBack.add(pTop); // Hierarchy: Base -> BackHinge -> BackMesh -> TopHinge -> TopMesh
-        // The target for Top is tricky. When Back folds down 90, Top is now parallel to floor.
-        // It needs to unfold another 90.
-        // Actually, let's keep it simple. Top face disappears or splits.
-        // For a nice "Box opening" effect: The top is actually attached to the Back panel, 
-        // and when Back opens, Top swings out.
-        
-        // 4. The City (Hidden Inside)
-        const cityGroup = new THREE.Group();
-        // Initially scaled down to zero
-        cityGroup.scale.set(0, 0, 0);
-        cityGroup.position.y = -CUBE_SIZE/2; // Start at floor level
-        scene.add(cityGroup);
-
-        const buildingGeos = [];
-        for(let i=0; i<CITY_SIZE; i++) {
-            const h = Math.random() * 3 + 1;
-            const w = Math.random() * 0.5 + 0.2;
-            const d = Math.random() * 0.5 + 0.2;
-            const geo = new THREE.BoxGeometry(w, h, d);
-            // Shift vertices so pivot is at bottom
-            geo.translate(0, h/2, 0);
+            // Bottom (Wheel arches handled simply here)
+            ctx.lineTo(startX, startY);
             
-            const mat = new THREE.MeshStandardMaterial({
-                color: 0x111111,
-                metalness: 0.8,
-                roughness: 0.2,
-                emissive: 0x000000,
-                emissiveMap: createBuildingTexture(),
-                emissiveIntensity: 2.0
-            });
-            const building = new THREE.Mesh(geo, mat);
-            
-            // Random position within cube bounds
-            building.position.set(
-                (Math.random() - 0.5) * (CUBE_SIZE - 1),
-                0,
-                (Math.random() - 0.5) * (CUBE_SIZE - 1)
-            );
-            building.castShadow = true;
-            building.receiveShadow = true;
-            cityGroup.add(building);
-            buildingGeos.push({ mesh: building, targetHeight: h });
-        }
+            ctx.closePath();
 
-        // Vehicles
-        const vehicles = [];
-        for(let i=0; i<5; i++) {
-            const vGeo = new THREE.ConeGeometry(0.05, 0.2, 8);
-            vGeo.rotateX(Math.PI/2);
-            const vMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Red/Orange engine
-            const v = new THREE.Mesh(vGeo, vMat);
-            scene.add(v);
-            vehicles.push({ 
-                mesh: v, 
-                speed: 0.02 + Math.random() * 0.02, 
-                offset: Math.random() * Math.PI * 2, 
-                radius: 2 + Math.random() * 3,
-                y: Math.random() * 3
-            });
-        }
-
-
-        // --- POST PROCESSING ---
-        const renderScene = new RenderPass(scene, camera);
-        
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-        bloomPass.threshold = 0.1;
-        bloomPass.strength = 1.2; // Soft neon glow
-        bloomPass.radius = 0.5;
-
-        const composer = new EffectComposer(renderer);
-        composer.addPass(renderScene);
-        composer.addPass(bloomPass);
-
-        // --- ANIMATION STATE ---
-        let startTime = null;
-        let isOpen = false;
-
-        // --- LOOP ---
-        function animate(time) {
-            requestAnimationFrame(animate);
-            
-            if(!startTime) startTime = time * 0.001;
-            const elapsed = (time * 0.001) - startTime;
-
-            controls.update();
-
-            // 1. Ambient Particle Rotation
-            particleSystem.rotation.y += 0.001;
-
-            // 2. Vehicle Animation
-            vehicles.forEach(v => {
-                const t = time * 0.001 * v.speed + v.offset;
-                v.mesh.position.x = Math.sin(t) * v.radius;
-                v.mesh.position.z = Math.cos(t) * v.radius;
-                v.mesh.position.y = Math.sin(t * 2) * 0.5 + v.y;
-                v.mesh.lookAt(
-                    Math.sin(t + 0.1) * v.radius, 
-                    v.mesh.position.y, 
-                    Math.cos(t + 0.1) * v.radius
-                );
-            });
-
-            // 3. Cube Logic
-            if (elapsed < UNFOLD_START_TIME) {
-                // Phase 1: Floating & Rotating
-                shellGroup.rotation.y = Math.sin(elapsed * 0.5) * 0.5;
-                shellGroup.rotation.x = Math.sin(elapsed * 0.3) * 0.2;
-                shellGroup.position.y = Math.sin(elapsed * 2) * 0.1;
+            // FILL STYLING
+            if (t < 0.5) {
+                // Toy Look: Plastic
+                ctx.fillStyle = toyColor;
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 5;
+                ctx.stroke();
+                ctx.fill();
                 
-                // Pulse colors
-                const hue = (elapsed * 0.1) % 1;
-                shellMat.emissive.setHSL(hue, 0.5, 0.2);
+                // Toy Wind-up Key
+                if(t < 0.2) {
+                    ctx.fillStyle = 'silver';
+                    ctx.fillRect(startX - 20, startY - height * 0.5, 20, 60);
+                    ctx.beginPath();
+                    ctx.arc(startX - 20, startY - height * 0.5, 30, 0, Math.PI*2);
+                    ctx.stroke();
+                }
 
             } else {
-                // Phase 2: Unfolding
-                // Normalize animation time (0 to 1)
-                let unfoldProgress = (elapsed - UNFOLD_START_TIME) * 0.5;
-                if (unfoldProgress > 1) unfoldProgress = 1;
-
-                // Smooth step interpolation
-                const ease = unfoldProgress * unfoldProgress * (3 - 2 * unfoldProgress);
-
-                // Rotate outer shell group to flat
-                shellGroup.rotation.x = THREE.MathUtils.lerp(shellGroup.rotation.x, 0, 0.05);
-                shellGroup.rotation.y = THREE.MathUtils.lerp(shellGroup.rotation.y, 0, 0.05);
-                shellGroup.position.y = THREE.MathUtils.lerp(shellGroup.position.y, 0, 0.05);
-
-                // Open the panels
-                pivots.forEach(p => {
-                    if(p.axis === 'x') p.obj.rotation.x = THREE.MathUtils.lerp(0, p.target, ease);
-                    if(p.axis === 'z') p.obj.rotation.z = THREE.MathUtils.lerp(0, p.target, ease);
-                });
+                // Supercar Look: Metallic Gradient
+                let grad = ctx.createLinearGradient(startX, startY - height, startX, startY);
+                grad.addColorStop(0, '#800000'); // Dark Red
+                grad.addColorStop(0.5, '#ff0000'); // Bright Red
+                grad.addColorStop(1, '#400000'); // Dark Bottom
                 
-                // Handle Top lid (attached to Back panel)
-                // As Back panel goes to -90 (flat), Top panel needs to go to -90 relative to Back to lie flat?
-                // No, if Back is flat, Top is sticking out. Let's fold Top INWARD or just flatten it further.
-                pTop.rotation.x = THREE.MathUtils.lerp(0, -Math.PI/2, ease);
+                ctx.fillStyle = grad;
+                
+                // Glow effect
+                ctx.shadowBlur = 20 * t;
+                ctx.shadowColor = 'red';
+                ctx.fill();
+                ctx.shadowBlur = 0; // Reset
+            }
 
-                // Reveal City
-                if(unfoldProgress > 0.5) {
-                     // Scale up city
-                     const cityProgress = (unfoldProgress - 0.5) * 2;
-                     cityGroup.scale.setScalar(THREE.MathUtils.lerp(0, 1, cityProgress));
+            // 2. THE WHEELS
+            // Rear Wheel
+            drawWheel(centerX - wheelSpacing/2, startY, wheelSize, t);
+            // Front Wheel
+            drawWheel(centerX + wheelSpacing/2, startY, wheelSize, t);
+
+            // 3. SCI-FI TRANSFORMATION GRID (Visual Flair)
+            if (t > 0.1 && t < 0.9) {
+                ctx.strokeStyle = `rgba(0, 255, 255, ${Math.sin(frame * 0.1)})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY - 50, width/1.5, 0, Math.PI*2);
+                ctx.stroke();
+                
+                // Scanlines
+                ctx.fillStyle = `rgba(0, 255, 255, 0.1)`;
+                ctx.fillRect(startX, startY - height, width, height);
+            }
+
+            ctx.restore();
+        }
+
+        function drawWheel(x, y, r, t) {
+            ctx.save();
+            ctx.translate(x, y);
+            // Rotation based on speed
+            const rotationSpeed = lerp(0.1, 0.5, t);
+            ctx.rotate(frame * rotationSpeed);
+
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            
+            if (t < 0.5) {
+                // Toy Wheel: Black rubber, small white center
+                ctx.fillStyle = '#111';
+                ctx.fill();
+                ctx.fillStyle = '#EEE';
+                ctx.beginPath();
+                ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Supercar Wheel: Low profile, alloy rims
+                ctx.fillStyle = '#000';
+                ctx.fill(); // Tire
+                
+                // Rim (Neon color)
+                ctx.strokeStyle = '#0ff';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(0, 0, r * 0.7, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Spokes
+                ctx.beginPath();
+                ctx.moveTo(-r*0.7, 0); ctx.lineTo(r*0.7, 0);
+                ctx.moveTo(0, -r*0.7); ctx.lineTo(0, r*0.7);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        // --- MAIN LOOP ---
+
+        function animate() {
+            // Clear Canvas
+            ctx.clearRect(0, 0, 1920, 1080);
+
+            // Calculate Morph State
+            // We oscillate morphFactor between 0 and 1 using a Sine wave logic for smooth looping
+            // Or we can use a directed counter. Let's use a directed counter with pauses.
+            
+            if(!isPaused) {
+                morphFactor += 0.005 * direction;
+                
+                // Pause at Toy State
+                if (morphFactor <= 0) {
+                    morphFactor = 0;
+                    direction = 1;
+                    statusText.innerText = "Mode: TOY CAR";
+                    statusText.style.color = "white";
+                    // Pause for a moment
+                    isPaused = true;
+                    setTimeout(() => { isPaused = false; }, 2000);
+                }
+                
+                // Pause at Supercar State
+                if (morphFactor >= 1) {
+                    morphFactor = 1;
+                    direction = -1;
+                    statusText.innerText = "Mode: SUPERCAR";
+                    statusText.style.color = "cyan";
+                    isPaused = true;
+                    setTimeout(() => { isPaused = false; }, 2000);
                 }
             }
 
-            composer.render();
+            if (morphFactor > 0 && morphFactor < 1) {
+                statusText.innerText = "SYSTEM: TRANSFORMING...";
+                statusText.style.color = "orange";
+            }
+
+            // Apply Easing for visuals
+            const easedT = easeInOutQuad(morphFactor);
+
+            // Draw layers
+            drawBackground(easedT);
+            drawRoad(lerp(1, 3, easedT)); // Speed increases as it transforms
+            drawCar(easedT);
+
+            // Update Frame
+            frame++;
+            requestAnimationFrame(animate);
         }
 
-        // Handle Window Resize
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            composer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        document.getElementById('loading').style.display = 'none';
-        animate(0);
+        // Start
+        animate();
 
     </script>
 </body>
