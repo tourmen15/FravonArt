@@ -2,25 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cyberpunk Unfolding Cube - Three.js Single File</title>
+    <title>Cyberpunk Cube Unfolding</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        #canvas-container {
-            width: 100%;
-            height: 100%;
-            /* Force 16:9 Aspect Ratio for the container if needed, 
-               but usually browser window fits. 
-               Ensuring the renderer handles the aspect ratio below. */
-            position: relative;
+        body { margin: 0; overflow: hidden; background-color: #000; }
+        canvas { display: block; }
+        #loading {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #0ff; font-family: monospace; font-size: 24px; pointer-events: none;
         }
     </style>
     <script type="importmap">
@@ -33,447 +21,411 @@
     </script>
 </head>
 <body>
-    <div id="canvas-container"></div>
+    <div id="loading">SYSTEM INITIALIZING...</div>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        // --- CONFIGURATION ---
+        const ANIMATION_SPEED = 0.005;
+        const UNFOLD_START_TIME = 3.0; // Seconds before unfolding starts
+        const CITY_SIZE = 20; // Number of buildings
+        const CUBE_SIZE = 4; 
 
-// --- Globals & Constants ---
-let scene, camera, renderer, composer, controls;
-const container = document.getElementById('canvas-container');
-const ASPECT_RATIO = 16 / 9;
-// Set resolution height to 1080, width calculated by aspect ratio
-const RENDER_HEIGHT = 1080;
-const RENDER_WIDTH = RENDER_HEIGHT * ASPECT_RATIO;
+        // --- SCENE SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505);
+        scene.fog = new THREE.FogExp2(0x050505, 0.02);
 
-// Animation timings
-const LOOP_DURATION = 24; // seconds
-let animationTime = 0;
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(8, 6, 8);
 
-// Main Object Groups
-let mainContainerGroup, cubePanelsGroup, cityGroup;
-const panels = [];
-let particleSystem, revealParticles;
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
 
-// Colors
-const NEON_CYAN = 0x00ffff;
-const NEON_PINK = 0xff00ff;
-const NEON_BLUE = 0x0088ff;
-const DARK_METAL = 0x222222;
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
 
+        // --- TEXTURE GENERATION (PROCEDURAL) ---
+        // Helper to create tech-looking textures without external images
+        function createTechTexture(color, segments) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512; canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Background
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, 512, 512);
+            
+            // Grid lines
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            for(let i=0; i<=segments; i++) {
+                const pos = (i/segments) * 512;
+                ctx.moveTo(pos, 0); ctx.lineTo(pos, 512);
+                ctx.moveTo(0, pos); ctx.lineTo(512, pos);
+            }
+            ctx.stroke();
 
-// --- Initialization ---
-init();
+            // Random tech details
+            ctx.fillStyle = color;
+            for(let i=0; i<10; i++) {
+                const x = Math.floor(Math.random() * segments) * (512/segments) + 10;
+                const y = Math.floor(Math.random() * segments) * (512/segments) + 10;
+                ctx.fillRect(x, y, (512/segments)-20, (512/segments)-20);
+            }
 
-function init() {
-    // 1. Scene Setup
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x050508);
-    scene.fog = new THREE.FogExp2(0x050508, 0.02);
-
-    // 2. Camera Setup
-    camera = new THREE.PerspectiveCamera(50, ASPECT_RATIO, 0.1, 1000);
-    camera.position.set(15, 12, 25);
-
-    // 3. Renderer Setup
-    renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    // We set the size specifically for the target resolution
-    renderer.setSize(RENDER_WIDTH, RENDER_HEIGHT);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.5;
-    container.appendChild(renderer.domElement);
-
-    // 4. Controls
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.5;
-
-    // 5. Lighting
-    setupLights();
-
-    // 6. Environment Objects (Floor & Particles)
-    createEnvironment();
-
-    // 7. The Main Object (Cube & City)
-    createMainObject();
-
-    // 8. Post-Processing (Bloom)
-    setupPostProcessing();
-
-    // Handle window resize to maintain aspect ratio within browser window
-    window.addEventListener('resize', onWindowResize);
-    onWindowResize(); // Trigger once to set initial correct size
-
-    // Start Animation Loop
-    renderer.setAnimationLoop(animate);
-}
-
-function setupLights() {
-    const ambientLight = new THREE.AmbientLight(0x111111);
-    scene.add(ambientLight);
-
-    // Key light causing shadows
-    const mainLight = new THREE.PointLight(NEON_BLUE, 5, 50);
-    mainLight.position.set(5, 15, 5);
-    mainLight.castShadow = true;
-    mainLight.shadow.mapSize.width = 2048;
-    mainLight.shadow.mapSize.height = 2048;
-    scene.add(mainLight);
-
-    // Fill lights for neon atmosphere
-    const pinkLight = new THREE.PointLight(NEON_PINK, 2, 30);
-    pinkLight.position.set(-10, 5, -10);
-    scene.add(pinkLight);
-}
-
-function createEnvironment() {
-    // Reflective Floor
-    const floorGeo = new THREE.PlaneGeometry(200, 200);
-    const floorMat = new THREE.MeshStandardMaterial({
-        color: 0x111111,
-        metalness: 0.9,
-        roughness: 0.1,
-        envMapIntensity: 1.0
-    });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -4; // Sit slightly below the cube
-    floor.receiveShadow = true;
-    scene.add(floor);
-
-    // Ambient Particles
-    const particleGeo = new THREE.BufferGeometry();
-    const particleCount = 500;
-    const posArray = new Float32Array(particleCount * 3);
-    for(let i=0; i<particleCount*3; i++) {
-        posArray[i] = (Math.random() - 0.5) * 100;
-    }
-    particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-    const particleMat = new THREE.PointsMaterial({
-        size: 0.1,
-        color: NEON_CYAN,
-        transparent: true,
-        opacity: 0.5,
-        blending: THREE.AdditiveBlending
-    });
-    particleSystem = new THREE.Points(particleGeo, particleMat);
-    scene.add(particleSystem);
-}
-
-function createMainObject() {
-    mainContainerGroup = new THREE.Group();
-    scene.add(mainContainerGroup);
-
-    // A. The Cube Panels
-    cubePanelsGroup = new THREE.Group();
-    mainContainerGroup.add(cubePanelsGroup);
-    createCubePanels();
-
-    // B. The City Inside
-    cityGroup = new THREE.Group();
-    // Initially hidden
-    cityGroup.scale.set(0,0,0); 
-    mainContainerGroup.add(cityGroup);
-    generateProceduralCity();
-
-    // C. Reveal Particle System (for the "burst" effect)
-    const revealGeo = new THREE.BufferGeometry();
-    const revealCount = 200;
-    const revealPos = new Float32Array(revealCount*3);
-    const revealVel = new Float32Array(revealCount*3); // Store velocities
-    for(let i=0; i<revealCount; i++) {
-        revealPos[i*3] = (Math.random() - 0.5) * 4;  // Start tightly packed
-        revealPos[i*3+1] = (Math.random() - 0.5) * 4;
-        revealPos[i*3+2] = (Math.random() - 0.5) * 4;
-        
-        revealVel[i*3] = (Math.random() - 0.5) * 2; // Random outward velocity
-        revealVel[i*3+1] = (Math.random() - 0.5) * 2 + 2; // Upward bias
-        revealVel[i*3+2] = (Math.random() - 0.5) * 2;
-    }
-    revealGeo.setAttribute('position', new THREE.BufferAttribute(revealPos, 3));
-    revealGeo.userData.velocities = revealVel;
-    revealGeo.userData.initialPositions = revealPos.slice();
-
-    const revealMat = new THREE.PointsMaterial({
-        size: 0.2, color: NEON_PINK, blending: THREE.AdditiveBlending, transparent: true, opacity: 0
-    });
-    revealParticles = new THREE.Points(revealGeo, revealMat);
-    mainContainerGroup.add(revealParticles);
-}
-
-function createCubePanels() {
-    const panelSize = 4;
-    const halfSize = panelSize / 2;
-    const panelGeo = new THREE.BoxGeometry(panelSize, panelSize, 0.2); // Thin panels
-    
-    // Material with emissive edges
-    const panelMat = new THREE.MeshStandardMaterial({
-        color: DARK_METAL, metalness: 0.8, roughness: 0.3,
-        emissive: NEON_CYAN, emissiveIntensity: 0.2
-    });
-
-    // Helper to create a panel with a glowing edge wireframe
-    function createPanel(x, y, z, rx, ry, rz, name) {
-        const mesh = new THREE.Mesh(panelGeo, panelMat.clone());
-        mesh.position.set(x, y, z);
-        mesh.rotation.set(rx, ry, rz);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        mesh.userData.initialPos = mesh.position.clone();
-        mesh.userData.initialRot = mesh.rotation.clone();
-        mesh.name = name;
-
-        // Add glowing wireframe edges
-        const edges = new THREE.EdgesGeometry(panelGeo);
-        const lineMat = new THREE.LineBasicMaterial({ color: NEON_CYAN, blending: THREE.AdditiveBlending });
-        const wireframe = new THREE.LineSegments(edges, lineMat);
-        mesh.add(wireframe);
-        mesh.userData.wireframeMat = lineMat; // Store ref for animation
-
-        cubePanelsGroup.add(mesh);
-        panels.push(mesh);
-    }
-
-    // Create 6 faces arranged as a cube centered at 0,0,0
-    createPanel(0, 0, halfSize, 0, 0, 0, 'front');
-    createPanel(0, 0, -halfSize, 0, Math.PI, 0, 'back');
-    createPanel(halfSize, 0, 0, 0, Math.PI/2, 0, 'right');
-    createPanel(-halfSize, 0, 0, 0, -Math.PI/2, 0, 'left');
-    createPanel(0, halfSize, 0, -Math.PI/2, 0, 0, 'top');
-    createPanel(0, -halfSize, 0, Math.PI/2, 0, 0, 'bottom');
-}
-
-function generateProceduralCity() {
-    // 1. Skyscrapers
-    const buildingMatBase = new THREE.MeshStandardMaterial({color: 0x111111, metalness: 0.8, roughness: 0.2});
-    const buildingMatNeon1 = new THREE.MeshStandardMaterial({color: 0x333333, emissive: NEON_CYAN, emissiveIntensity: 1});
-    const buildingMatNeon2 = new THREE.MeshStandardMaterial({color: 0x333333, emissive: NEON_PINK, emissiveIntensity: 1});
-
-    for(let i=0; i<60; i++) {
-        let h = Math.random() * 3 + 1;
-        let w = Math.random() * 0.8 + 0.2;
-        const geo = new THREE.BoxGeometry(w, h, w);
-        // Randomly choose a material style
-        let mat = buildingMatBase;
-        if(Math.random() > 0.7) mat = buildingMatNeon1;
-        else if(Math.random() > 0.7) mat = buildingMatNeon2;
-
-        const building = new THREE.Mesh(geo, mat);
-        // Scatter within the bounds of the opened panels (approx 8x8 area)
-        building.position.set((Math.random()-0.5)*7, h/2, (Math.random()-0.5)*7);
-        building.castShadow = true;
-        building.receiveShadow = true;
-        cityGroup.add(building);
-
-        // Add tiny glowing "windows" randomly
-        if (Math.random() > 0.5) {
-            const windowGeo = new THREE.BoxGeometry(w*1.05, Math.random()*h*0.8, w*1.05);
-            const windowMat = new THREE.MeshBasicMaterial({ color: (Math.random()>0.5 ? NEON_CYAN : NEON_PINK), blending: THREE.AdditiveBlending, transparent:true, opacity: 0.5 });
-            const windows = new THREE.Mesh(windowGeo, windowMat);
-            windows.position.y = h/2;
-            building.add(windows);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            return tex;
         }
-    }
 
-    // 2. "Flying Vehicles" (animated in main loop)
-    cityGroup.userData.vehicles = [];
-    for(let i=0; i<20; i++) {
-        const vehicleGeo = new THREE.SphereGeometry(0.05, 8, 8);
-        const vehicleMat = new THREE.MeshBasicMaterial({ color: (i%2===0 ? NEON_BLUE : 0xffaa00) });
-        const vehicle = new THREE.Mesh(vehicleGeo, vehicleMat);
-        
-        // Assign random orbit parameters
-        vehicle.userData.radius = Math.random() * 4 + 1;
-        vehicle.userData.speed = Math.random() * 0.5 + 0.1;
-        vehicle.userData.yOffset = Math.random() * 4 + 1;
-        vehicle.userData.angle = Math.random() * Math.PI * 2;
-        
-        cityGroup.add(vehicle);
-        cityGroup.userData.vehicles.push(vehicle);
-    }
-}
-
-function setupPostProcessing() {
-    composer = new EffectComposer(renderer);
-    const renderPass = new RenderPass(scene, camera);
-    composer.addPass(renderPass);
-
-    // Bloom Parameters: Strength, Radius, Threshold
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(RENDER_WIDTH, RENDER_HEIGHT), 1.5, 0.4, 0.1);
-    composer.addPass(bloomPass);
-}
-
-function onWindowResize() {
-    // Maintain 16:9 aspect ratio within the browser window constraints
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-
-    if (width / height > ASPECT_RATIO) {
-        // Window is wider than 16:9, fit to height
-        width = height * ASPECT_RATIO;
-    } else {
-        // Window is taller than 16:9, fit to width
-        height = width / ASPECT_RATIO;
-    }
-
-    // Adjust renderer size based on calculated aspect-correct dimensions
-    renderer.setSize(width, height);
-    // Adjust composer size accordingly
-    composer.setSize(width, height);
-
-    // Camera aspect doesn't change, it stays 16:9
-    camera.aspect = ASPECT_RATIO;
-    camera.updateProjectionMatrix();
-}
-
-// --- Helper Functions for Animation ---
-// Smooth interpolation
-function smoothstep(min, max, value) {
-  var x = Math.max(0, Math.min(1, (value-min)/(max-min)));
-  return x*x*(3 - 2*x);
-}
-
-function animateCubeInternal(timeStr) {
-    // Pulse edges
-    const pulse = (Math.sin(timeStr * 4) + 1) / 2; // 0 to 1
-    panels.forEach(p => {
-        p.userData.wireframeMat.color.setHSL(0.5 + pulse*0.1, 1, 0.5);
-        p.material.emissiveIntensity = 0.2 + pulse * 0.3;
-    });
-    // Slow rotation of the whole group
-    mainContainerGroup.rotation.y = Math.sin(timeStr * 0.2) * 0.5;
-    mainContainerGroup.rotation.x = Math.cos(timeStr * 0.15) * 0.2;
-}
-
-function animateUnfolding(progress) {
-    // progress 0 (closed) -> 1 (open)
-    const smoothP = smoothstep(0, 1, progress);
-    const expansionDistance = 5;
-
-    panels.forEach(panel => {
-        const initPos = panel.userData.initialPos;
-        const initRot = panel.userData.initialRot;
-
-        // Move outwards based on initial normal vector
-        let targetPos = initPos.clone().add(initPos.clone().normalize().multiplyScalar(expansionDistance));
-        
-        // Rotate flat (simplified approach: look upwards and flatten y)
-        let targetRot = new THREE.Euler(-Math.PI/2, 0, 0); // Flat like floor
-        
-        // Interpolate position and rotation
-        panel.position.lerpVectors(initPos, targetPos, smoothP);
-        // Simple rotation interpolation for this specific case
-        panel.rotation.x = THREE.MathUtils.lerp(initRot.x, targetRot.x, smoothP);
-        panel.rotation.y = THREE.MathUtils.lerp(initRot.y, targetRot.y, smoothP);
-        panel.rotation.z = THREE.MathUtils.lerp(initRot.z, targetRot.z, smoothP);
-
-        // Dim the panels as they become "ground"
-        panel.material.emissiveIntensity = THREE.MathUtils.lerp(0.5, 0.1, smoothP);
-    });
-}
-
-function animateParticles(active, timeStr) {
-    const positions = revealParticles.geometry.attributes.position.array;
-    const velocities = revealParticles.geometry.userData.velocities;
-    const initialPositions = revealParticles.geometry.userData.initialPositions;
-
-    if(active) {
-        revealParticles.material.opacity = THREE.MathUtils.lerp(revealParticles.material.opacity, 1, 0.1);
-        for(let i=0; i < positions.length / 3; i++) {
-            positions[i*3] += velocities[i*3] * 0.05;
-            positions[i*3+1] += velocities[i*3+1] * 0.05;
-            positions[i*3+2] += velocities[i*3+2] * 0.05;
-            velocities[i*3+1] -= 0.02; // gravity
+        function createBuildingTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 128; canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#050505';
+            ctx.fillRect(0,0,128,256);
+            
+            // Windows
+            ctx.fillStyle = Math.random() > 0.5 ? '#0ff' : '#f0f'; // Cyan or Magenta
+            for(let y=10; y<250; y+=20) {
+                if(Math.random() > 0.3) {
+                    for(let x=10; x<110; x+=20) {
+                        if(Math.random() > 0.2) ctx.fillRect(x, y, 10, 10);
+                    }
+                }
+            }
+            return new THREE.CanvasTexture(canvas);
         }
-    } else {
-        // Reset
-        revealParticles.material.opacity = 0;
-        for(let i=0; i < positions.length; i++) {
-            positions[i] = initialPositions[i];
+
+        // --- LIGHTING ---
+        const ambientLight = new THREE.AmbientLight(0x404040, 1);
+        scene.add(ambientLight);
+
+        const spotLight = new THREE.SpotLight(0xffffff, 50);
+        spotLight.position.set(10, 20, 10);
+        spotLight.angle = Math.PI / 4;
+        spotLight.penumbra = 0.5;
+        spotLight.castShadow = true;
+        scene.add(spotLight);
+
+        // Neon Point Lights (Cyan and Magenta)
+        const light1 = new THREE.PointLight(0x00ffff, 2, 20);
+        light1.position.set(2, 3, 2);
+        scene.add(light1);
+
+        const light2 = new THREE.PointLight(0xff00ff, 2, 20);
+        light2.position.set(-2, 1, -2);
+        scene.add(light2);
+
+        // --- OBJECTS ---
+
+        // 1. Reflective Floor
+        const planeGeometry = new THREE.PlaneGeometry(100, 100);
+        const planeMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x000000,
+            roughness: 0.1,
+            metalness: 0.8
+        });
+        const floor = new THREE.Mesh(planeGeometry, planeMaterial);
+        floor.rotation.x = - Math.PI / 2;
+        floor.position.y = -2.1; // Slightly below the cube
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Floor Grid
+        const gridHelper = new THREE.GridHelper(100, 100, 0x00ffff, 0x222222);
+        gridHelper.position.y = -2.09;
+        scene.add(gridHelper);
+
+        // 2. Ambient Particles
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particleCount = 2000;
+        const posArray = new Float32Array(particleCount * 3);
+        for(let i = 0; i < particleCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 60;
         }
-    }
-    revealParticles.geometry.attributes.position.needsUpdate = true;
-}
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const particlesMaterial = new THREE.PointsMaterial({
+            size: 0.05,
+            color: 0xffffff,
+            transparent: true, 
+            opacity: 0.5
+        });
+        const particleSystem = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particleSystem);
 
-// --- Main Animation Loop ---
-function animate() {
-    animationTime += 0.016; // Approx 60fps increment
-    const loopTime = animationTime % LOOP_DURATION;
+        // 3. The Cube Shell (The Container)
+        const shellGroup = new THREE.Group();
+        scene.add(shellGroup);
 
-    controls.update();
+        const shellMat = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            metalness: 0.9,
+            roughness: 0.2,
+            map: createTechTexture('#004444', 4),
+            emissive: 0x001111,
+            side: THREE.DoubleSide
+        });
 
-    // Animate Ambient Particles
-    particleSystem.rotation.y += 0.001;
-    particleSystem.rotation.x -= 0.0005;
+        // We create 6 separate planes so we can rotate them individually like a flower opening
+        const panels = [];
+        const panelGeo = new THREE.PlaneGeometry(CUBE_SIZE, CUBE_SIZE);
 
-    // Animate City Vehicles (always running)
-    cityGroup.userData.vehicles.forEach(v => {
-        v.userData.angle += v.userData.speed * 0.02;
-        v.position.x = Math.cos(v.userData.angle) * v.userData.radius;
-        v.position.z = Math.sin(v.userData.angle) * v.userData.radius;
-        v.position.y = v.userData.yOffset + Math.sin(animationTime + v.userData.radius)*0.5;
-    });
+        // Helper to build a panel
+        function createPanel(x, y, z, rx, ry, rz, axis, dir) {
+            const mesh = new THREE.Mesh(panelGeo, shellMat);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            
+            // Create a pivot group to handle the "hinge" rotation
+            const pivot = new THREE.Group();
+            pivot.position.set(x, y, z); // Position the hinge
+            
+            // Offset mesh so it rotates around the edge
+            mesh.position.set(0, 0, 0); 
+            mesh.rotation.set(rx, ry, rz);
+            
+            // Initial position logic is tricky. 
+            // We want them to form a cube centered at 0,0,0.
+            // But we want them hinged at the *bottom* (or relevant edge) relative to the floor.
+            // Simplification: The Bottom panel is static. The Top, Front, Back, Left, Right rotate.
+            
+            return { pivot, mesh, axis, dir };
+        }
+        
+        // Bottom (Static base)
+        const basePanel = new THREE.Mesh(panelGeo, shellMat);
+        basePanel.rotation.x = -Math.PI/2;
+        basePanel.position.y = -CUBE_SIZE/2;
+        shellGroup.add(basePanel);
+
+        // For the other 5 faces, we create pivot groups attached to the basePanel's edges
+        // Side panels hinge at the bottom edge (-y)
+        const pivots = [];
+
+        // Front
+        const pFront = new THREE.Group();
+        pFront.position.set(0, 0, CUBE_SIZE/2); 
+        const mFront = new THREE.Mesh(panelGeo, shellMat);
+        mFront.position.set(0, CUBE_SIZE/2, 0); // Shift up relative to hinge
+        pFront.add(mFront);
+        basePanel.add(pFront);
+        pivots.push({ obj: pFront, axis: 'x', target: Math.PI/2 });
+
+        // Back
+        const pBack = new THREE.Group();
+        pBack.position.set(0, 0, -CUBE_SIZE/2);
+        const mBack = new THREE.Mesh(panelGeo, shellMat);
+        mBack.position.set(0, CUBE_SIZE/2, 0);
+        mBack.rotation.y = Math.PI;
+        pBack.add(mBack);
+        basePanel.add(pBack);
+        pivots.push({ obj: pBack, axis: 'x', target: -Math.PI/2 });
+
+        // Left
+        const pLeft = new THREE.Group();
+        pLeft.position.set(-CUBE_SIZE/2, 0, 0);
+        const mLeft = new THREE.Mesh(panelGeo, shellMat);
+        mLeft.position.set(0, CUBE_SIZE/2, 0);
+        mLeft.rotation.y = -Math.PI/2;
+        pLeft.add(mLeft);
+        basePanel.add(pLeft);
+        pivots.push({ obj: pLeft, axis: 'z', target: -Math.PI/2 });
+
+        // Right
+        const pRight = new THREE.Group();
+        pRight.position.set(CUBE_SIZE/2, 0, 0);
+        const mRight = new THREE.Mesh(panelGeo, shellMat);
+        mRight.position.set(0, CUBE_SIZE/2, 0);
+        mRight.rotation.y = Math.PI/2;
+        pRight.add(mRight);
+        basePanel.add(pRight);
+        pivots.push({ obj: pRight, axis: 'z', target: Math.PI/2 });
+
+        // Top - attached to Back panel for complex unfolding, 
+        // OR simpler: attached to Front panel? 
+        // Let's attach top to the Back panel's top edge.
+        const pTop = new THREE.Group();
+        pTop.position.set(0, CUBE_SIZE, 0); // Top of the Back panel mesh
+        const mTop = new THREE.Mesh(panelGeo, shellMat);
+        mTop.position.set(0, CUBE_SIZE/2, 0);
+        mTop.rotation.x = -Math.PI/2; // Face up
+        pTop.add(mTop);
+        mBack.add(pTop); // Hierarchy: Base -> BackHinge -> BackMesh -> TopHinge -> TopMesh
+        // The target for Top is tricky. When Back folds down 90, Top is now parallel to floor.
+        // It needs to unfold another 90.
+        // Actually, let's keep it simple. Top face disappears or splits.
+        // For a nice "Box opening" effect: The top is actually attached to the Back panel, 
+        // and when Back opens, Top swings out.
+        
+        // 4. The City (Hidden Inside)
+        const cityGroup = new THREE.Group();
+        // Initially scaled down to zero
+        cityGroup.scale.set(0, 0, 0);
+        cityGroup.position.y = -CUBE_SIZE/2; // Start at floor level
+        scene.add(cityGroup);
+
+        const buildingGeos = [];
+        for(let i=0; i<CITY_SIZE; i++) {
+            const h = Math.random() * 3 + 1;
+            const w = Math.random() * 0.5 + 0.2;
+            const d = Math.random() * 0.5 + 0.2;
+            const geo = new THREE.BoxGeometry(w, h, d);
+            // Shift vertices so pivot is at bottom
+            geo.translate(0, h/2, 0);
+            
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0x111111,
+                metalness: 0.8,
+                roughness: 0.2,
+                emissive: 0x000000,
+                emissiveMap: createBuildingTexture(),
+                emissiveIntensity: 2.0
+            });
+            const building = new THREE.Mesh(geo, mat);
+            
+            // Random position within cube bounds
+            building.position.set(
+                (Math.random() - 0.5) * (CUBE_SIZE - 1),
+                0,
+                (Math.random() - 0.5) * (CUBE_SIZE - 1)
+            );
+            building.castShadow = true;
+            building.receiveShadow = true;
+            cityGroup.add(building);
+            buildingGeos.push({ mesh: building, targetHeight: h });
+        }
+
+        // Vehicles
+        const vehicles = [];
+        for(let i=0; i<5; i++) {
+            const vGeo = new THREE.ConeGeometry(0.05, 0.2, 8);
+            vGeo.rotateX(Math.PI/2);
+            const vMat = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Red/Orange engine
+            const v = new THREE.Mesh(vGeo, vMat);
+            scene.add(v);
+            vehicles.push({ 
+                mesh: v, 
+                speed: 0.02 + Math.random() * 0.02, 
+                offset: Math.random() * Math.PI * 2, 
+                radius: 2 + Math.random() * 3,
+                y: Math.random() * 3
+            });
+        }
 
 
-    // --- Animation Timeline ---
-    
-    // Phase 1: Closed & Pulsing (0s - 4s)
-    if (loopTime < 4) {
-        animateCubeInternal(animationTime);
-        animateUnfolding(0); // Ensure closed
-        cityGroup.scale.set(0,0,0);
-        animateParticles(false);
-    } 
-    // Phase 2: Unfolding & Particle Burst (4s - 7s)
-    else if (loopTime < 7) {
-        const phaseProgress = (loopTime - 4) / 3;
-        animateUnfolding(phaseProgress);
-        // Trigger particles near start of unfold
-        if(phaseProgress > 0.1 && phaseProgress < 0.8) animateParticles(true, animationTime);
-         // Ensure city hidden until mostly open
-         cityGroup.scale.set(0,0,0);
-    }
-    // Phase 3: City Reveal (Scaling Up) (7s - 10s)
-    else if (loopTime < 10) {
-         animateUnfolding(1); // Hold open
-         animateParticles(true, animationTime); // Let particles fade/fall
-         const phaseProgress = (loopTime - 7) / 3;
-         const scale = smoothstep(0, 1, phaseProgress);
-         cityGroup.scale.set(scale, scale, scale);
-         // Slow down auto rotate for admiration
-         controls.autoRotateSpeed = THREE.MathUtils.lerp(0.5, 0.2, phaseProgress);
-    }
-    // Phase 4: Hold & Admire (10s - 18s)
-    else if (loopTime < 18) {
-        animateUnfolding(1);
-        cityGroup.scale.set(1,1,1);
-        animateParticles(false); // Reset particles
-    }
-    // Phase 5: Close & Hide (18s - 24s)
-    else {
-        const phaseProgress = (loopTime - 18) / 6;
-        // Reverse unfolding
-        animateUnfolding(1 - phaseProgress);
-        // Scale down city faster than folding
-        const scale = smoothstep(1, 0, phaseProgress * 1.5); 
-        cityGroup.scale.set(scale, scale, scale);
-        // Speed rotation back up
-        controls.autoRotateSpeed = THREE.MathUtils.lerp(0.2, 0.5, phaseProgress);
-    }
+        // --- POST PROCESSING ---
+        const renderScene = new RenderPass(scene, camera);
+        
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        bloomPass.threshold = 0.1;
+        bloomPass.strength = 1.2; // Soft neon glow
+        bloomPass.radius = 0.5;
 
+        const composer = new EffectComposer(renderer);
+        composer.addPass(renderScene);
+        composer.addPass(bloomPass);
 
-    // Render using composer for post-processing
-    composer.render();
-}
-</script>
+        // --- ANIMATION STATE ---
+        let startTime = null;
+        let isOpen = false;
+
+        // --- LOOP ---
+        function animate(time) {
+            requestAnimationFrame(animate);
+            
+            if(!startTime) startTime = time * 0.001;
+            const elapsed = (time * 0.001) - startTime;
+
+            controls.update();
+
+            // 1. Ambient Particle Rotation
+            particleSystem.rotation.y += 0.001;
+
+            // 2. Vehicle Animation
+            vehicles.forEach(v => {
+                const t = time * 0.001 * v.speed + v.offset;
+                v.mesh.position.x = Math.sin(t) * v.radius;
+                v.mesh.position.z = Math.cos(t) * v.radius;
+                v.mesh.position.y = Math.sin(t * 2) * 0.5 + v.y;
+                v.mesh.lookAt(
+                    Math.sin(t + 0.1) * v.radius, 
+                    v.mesh.position.y, 
+                    Math.cos(t + 0.1) * v.radius
+                );
+            });
+
+            // 3. Cube Logic
+            if (elapsed < UNFOLD_START_TIME) {
+                // Phase 1: Floating & Rotating
+                shellGroup.rotation.y = Math.sin(elapsed * 0.5) * 0.5;
+                shellGroup.rotation.x = Math.sin(elapsed * 0.3) * 0.2;
+                shellGroup.position.y = Math.sin(elapsed * 2) * 0.1;
+                
+                // Pulse colors
+                const hue = (elapsed * 0.1) % 1;
+                shellMat.emissive.setHSL(hue, 0.5, 0.2);
+
+            } else {
+                // Phase 2: Unfolding
+                // Normalize animation time (0 to 1)
+                let unfoldProgress = (elapsed - UNFOLD_START_TIME) * 0.5;
+                if (unfoldProgress > 1) unfoldProgress = 1;
+
+                // Smooth step interpolation
+                const ease = unfoldProgress * unfoldProgress * (3 - 2 * unfoldProgress);
+
+                // Rotate outer shell group to flat
+                shellGroup.rotation.x = THREE.MathUtils.lerp(shellGroup.rotation.x, 0, 0.05);
+                shellGroup.rotation.y = THREE.MathUtils.lerp(shellGroup.rotation.y, 0, 0.05);
+                shellGroup.position.y = THREE.MathUtils.lerp(shellGroup.position.y, 0, 0.05);
+
+                // Open the panels
+                pivots.forEach(p => {
+                    if(p.axis === 'x') p.obj.rotation.x = THREE.MathUtils.lerp(0, p.target, ease);
+                    if(p.axis === 'z') p.obj.rotation.z = THREE.MathUtils.lerp(0, p.target, ease);
+                });
+                
+                // Handle Top lid (attached to Back panel)
+                // As Back panel goes to -90 (flat), Top panel needs to go to -90 relative to Back to lie flat?
+                // No, if Back is flat, Top is sticking out. Let's fold Top INWARD or just flatten it further.
+                pTop.rotation.x = THREE.MathUtils.lerp(0, -Math.PI/2, ease);
+
+                // Reveal City
+                if(unfoldProgress > 0.5) {
+                     // Scale up city
+                     const cityProgress = (unfoldProgress - 0.5) * 2;
+                     cityGroup.scale.setScalar(THREE.MathUtils.lerp(0, 1, cityProgress));
+                }
+            }
+
+            composer.render();
+        }
+
+        // Handle Window Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        document.getElementById('loading').style.display = 'none';
+        animate(0);
+
+    </script>
 </body>
 </html>
