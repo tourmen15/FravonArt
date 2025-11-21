@@ -5,367 +5,354 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Toy to Supercar Transformation</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: sans-serif; }
         canvas { display: block; }
         
         #ui-container {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 100;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 10;
+            pointer-events: none; /* Let clicks pass through except for button */
         }
 
         #record-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: #fff;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
+            pointer-events: auto;
+            background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
+            border: none;
+            border-radius: 30px;
+            padding: 15px 40px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
-            font-size: 12px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.5);
             transition: all 0.3s ease;
-            backdrop-filter: blur(5px);
+            outline: none;
         }
 
         #record-btn:hover {
-            background: #fff;
-            color: #000;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(0, 210, 255, 0.8);
         }
 
         #record-btn.recording {
-            background: #ff3333;
-            border-color: #ff3333;
-            color: white;
-            animation: pulse 1s infinite;
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            box-shadow: 0 0 20px rgba(255, 65, 108, 0.5);
+            animation: pulse 1.5s infinite;
         }
 
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(255, 51, 51, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0); }
-        }
-
-        #loading {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            pointer-events: none;
+            0% { box-shadow: 0 0 0 0 rgba(255, 65, 108, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 65, 108, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 65, 108, 0); }
         }
     </style>
-    
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
 </head>
 <body>
 
     <div id="ui-container">
-        <button id="record-btn">Download Video</button>
+        <button id="record-btn">Download Video (15s)</button>
     </div>
-    <div id="loading">Loading Engine...</div>
 
-    <script type="module">
-        import * as THREE from 'three';
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-        // --- CONFIGURATION ---
-        const SCENE_CONFIG = {
-            bgColor: 0x050505,
-            floorColor: 0x111111,
-            neonColor: 0x00ffff,
-            toyColor: 0xff3333, // Red plastic
-            supercarColor: 0x111111, // Black chrome
-            loopDuration: 12 // Seconds for full loop
-        };
-
-        // --- SETUP SCENE ---
+    <script>
+        // --- SCENE SETUP ---
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(SCENE_CONFIG.bgColor);
-        scene.fog = new THREE.FogExp2(SCENE_CONFIG.bgColor, 0.02);
+        scene.background = new THREE.Color(0x050505);
+        scene.fog = new THREE.FogExp2(0x050505, 0.02);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
         camera.position.set(8, 5, 8);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); // preserveDrawingBuffer needed for recorder
+        const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
         document.body.appendChild(renderer.domElement);
-
-        document.getElementById('loading').style.display = 'none';
 
         // --- LIGHTING ---
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
         scene.add(ambientLight);
 
-        const mainLight = new THREE.DirectionalLight(0xffffff, 1);
-        mainLight.position.set(5, 10, 5);
-        mainLight.castShadow = true;
-        mainLight.shadow.mapSize.width = 2048;
-        mainLight.shadow.mapSize.height = 2048;
-        scene.add(mainLight);
+        const mainSpot = new THREE.SpotLight(0xffffff, 2);
+        mainSpot.position.set(10, 20, 10);
+        mainSpot.castShadow = true;
+        mainSpot.shadow.mapSize.width = 2048;
+        mainSpot.shadow.mapSize.height = 2048;
+        scene.add(mainSpot);
 
-        // Neon/Rim lights
-        const blueLight = new THREE.PointLight(0x00aaff, 2, 20);
+        // Cinematic Blue Rim Light
+        const blueLight = new THREE.PointLight(0x0088ff, 2, 20);
         blueLight.position.set(-5, 2, -5);
         scene.add(blueLight);
 
-        const pinkLight = new THREE.PointLight(0xff00aa, 2, 20);
-        pinkLight.position.set(5, 2, -5);
-        scene.add(pinkLight);
+        // Warm Rim Light
+        const warmLight = new THREE.PointLight(0xffaa00, 1, 20);
+        warmLight.position.set(5, 2, 5);
+        scene.add(warmLight);
 
-        // --- ENVIRONMENT (The Table) ---
-        const planeGeometry = new THREE.PlaneGeometry(100, 100);
-        const planeMaterial = new THREE.MeshStandardMaterial({ 
-            color: SCENE_CONFIG.floorColor,
-            roughness: 0.1,
-            metalness: 0.5
+        // --- MATERIALS ---
+        // We will modify these properties during animation
+        const paintMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xff0000, // Toy Red
+            metalness: 0.0, // Plastic
+            roughness: 0.4, // Slightly glossy plastic
+            clearcoat: 0.5,
+            clearcoatRoughness: 0.1
         });
-        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-        plane.rotation.x = -Math.PI / 2;
-        plane.receiveShadow = true;
-        scene.add(plane);
 
-        const grid = new THREE.GridHelper(100, 100, 0x333333, 0x111111);
-        scene.add(grid);
+        const darkMaterial = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            metalness: 0.0,
+            roughness: 0.8
+        });
 
-        // --- THE CAR (PROCEDURAL MODEL) ---
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0
+        });
+
+        const outlineMaterial = new THREE.LineBasicMaterial({ 
+            color: 0x00ffff, 
+            transparent: true, 
+            opacity: 0,
+            blending: THREE.AdditiveBlending
+        });
+
+        // --- GEOMETRY CONSTRUCTION (PROCEDURAL CAR) ---
         const carGroup = new THREE.Group();
         scene.add(carGroup);
 
-        // Materials
-        // We will mutate this material to shift from Plastic to Metal
-        const bodyMaterial = new THREE.MeshStandardMaterial({
-            color: SCENE_CONFIG.toyColor,
-            roughness: 0.6, // Plastic
-            metalness: 0.1
-        });
-
-        const glassMaterial = new THREE.MeshPhysicalMaterial({
-            color: 0x000000,
-            roughness: 0.0,
-            transmission: 0.2,
-            metalness: 0.9,
-            clearcoat: 1.0
-        });
-
-        const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
-        const rimMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.2 });
-        const neonLineMaterial = new THREE.LineBasicMaterial({ color: SCENE_CONFIG.neonColor, transparent: true, opacity: 0 });
-        
-        // Headlights (Emissive)
-        const headlightMat = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            emissive: 0xffffff,
-            emissiveIntensity: 0
-        });
-
-        // 1. Chassis
-        const chassisGeo = new THREE.BoxGeometry(1.5, 0.5, 3);
-        const chassis = new THREE.Mesh(chassisGeo, bodyMaterial);
+        // 1. Main Chassis
+        const chassisGeo = new THREE.BoxGeometry(1.8, 0.5, 4);
+        const chassis = new THREE.Mesh(chassisGeo, paintMaterial);
         chassis.castShadow = true;
         chassis.position.y = 0.5;
         carGroup.add(chassis);
 
-        // Neon Edges for Chassis
-        const edgesGeo = new THREE.EdgesGeometry(chassisGeo);
-        const chassisLines = new THREE.LineSegments(edgesGeo, neonLineMaterial);
-        chassis.add(chassisLines);
+        // Add Outline to Chassis
+        const edges = new THREE.EdgesGeometry(chassisGeo);
+        const lineLoop = new THREE.LineSegments(edges, outlineMaterial);
+        chassis.add(lineLoop);
 
-        // 2. Cabin
-        const cabinGeo = new THREE.BoxGeometry(1.2, 0.4, 1.5);
-        // Make cabin look a bit more aerodynamic (tapered)
-        const positionAttribute = cabinGeo.attributes.position;
-        for ( let i = 0; i < positionAttribute.count; i ++ ) {
-            const y = positionAttribute.getY( i );
-            if ( y > 0 ) {
-                const z = positionAttribute.getZ( i );
-                // Taper the top
-                positionAttribute.setX( i, positionAttribute.getX( i ) * 0.8 );
-                // Slope the windshield
-                if(z > 0) positionAttribute.setZ(i, z * 0.6); 
-            }
-        }
-        cabinGeo.computeVertexNormals();
-        
-        const cabin = new THREE.Mesh(cabinGeo, glassMaterial);
-        cabin.position.set(0, 0.45, -0.2);
+        // 2. Cabin (Top)
+        const cabinGeo = new THREE.BoxGeometry(1.4, 0.4, 2);
+        const cabin = new THREE.Mesh(cabinGeo, darkMaterial);
+        cabin.position.set(0, 0.5, -0.2);
         cabin.castShadow = true;
         chassis.add(cabin);
 
-        // 3. Wheels
-        const wheels = [];
-        function createWheel(x, z) {
-            const group = new THREE.Group();
-            const tireGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.3, 32);
-            tireGeo.rotateZ(Math.PI/2);
-            const tire = new THREE.Mesh(tireGeo, wheelMaterial);
-            tire.castShadow = true;
-            
-            const rimGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.31, 16);
-            rimGeo.rotateZ(Math.PI/2);
-            const rim = new THREE.Mesh(rimGeo, rimMaterial);
+        // 3. Side Panels (Expandable)
+        const panelGeo = new THREE.BoxGeometry(0.2, 0.4, 2.5);
+        const leftPanel = new THREE.Mesh(panelGeo, paintMaterial);
+        const rightPanel = new THREE.Mesh(panelGeo, paintMaterial);
+        leftPanel.position.set(-1.0, 0, 0);
+        rightPanel.position.set(1.0, 0, 0);
+        chassis.add(leftPanel);
+        chassis.add(rightPanel);
 
-            group.add(tire);
-            group.add(rim);
-            group.position.set(x, 0.35, z);
-            carGroup.add(group);
-            return group;
-        }
-
-        // Initial Wheel Positions (Toy Mode)
-        wheels.push(createWheel(0.8, 1.0));  // Front R
-        wheels.push(createWheel(-0.8, 1.0)); // Front L
-        wheels.push(createWheel(0.8, -1.0)); // Back R
-        wheels.push(createWheel(-0.8, -1.0)); // Back L
-
-        // 4. Headlights
-        const lightGeo = new THREE.BoxGeometry(0.3, 0.1, 0.1);
-        const headLightL = new THREE.Mesh(lightGeo, headlightMat);
-        const headLightR = new THREE.Mesh(lightGeo, headlightMat);
-        headLightL.position.set(-0.5, 0.0, 1.51);
-        headLightR.position.set(0.5, 0.0, 1.51);
-        chassis.add(headLightL);
-        chassis.add(headLightR);
-
-        // 5. Spoiler (Hidden in Toy mode, expands in Supercar mode)
-        const spoilerGeo = new THREE.BoxGeometry(1.4, 0.1, 0.4);
-        const spoiler = new THREE.Mesh(spoilerGeo, bodyMaterial);
-        spoiler.position.set(0, 0.26, -1.4);
+        // 4. Spoiler (Pop up)
+        const spoilerGeo = new THREE.BoxGeometry(2, 0.1, 0.5);
+        const spoiler = new THREE.Mesh(spoilerGeo, paintMaterial);
+        spoiler.position.set(0, 0.3, 1.8);
         chassis.add(spoiler);
 
-        // --- PARTICLES SYSTEM ---
-        const particleCount = 200;
+        // 5. Headlights
+        const lightGeo = new THREE.BoxGeometry(0.4, 0.1, 0.1);
+        const leftLight = new THREE.Mesh(lightGeo, glowMaterial);
+        const rightLight = new THREE.Mesh(lightGeo, glowMaterial);
+        leftLight.position.set(-0.6, 0.1, -2.01);
+        rightLight.position.set(0.6, 0.1, -2.01);
+        chassis.add(leftLight);
+        chassis.add(rightLight);
+
+        // 6. Wheels
+        const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 32);
+        wheelGeo.rotateZ(Math.PI / 2);
+        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+        
+        const wheels = [];
+        function createWheel(x, z) {
+            const w = new THREE.Mesh(wheelGeo, wheelMat);
+            w.position.set(x, 0.4, z);
+            w.castShadow = true;
+            carGroup.add(w);
+            wheels.push(w);
+            return w;
+        }
+        createWheel(-1, -1.2);
+        createWheel(1, -1.2);
+        createWheel(-1, 1.2);
+        createWheel(1, 1.2);
+
+        // --- ENVIRONMENT (REFLECTIVE FLOOR) ---
+        const planeGeo = new THREE.PlaneGeometry(50, 50);
+        const planeMat = new THREE.MeshStandardMaterial({ 
+            color: 0x101010, 
+            metalness: 0.8, 
+            roughness: 0.1 
+        });
+        const floor = new THREE.Mesh(planeGeo, planeMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // --- PARTICLE SYSTEM (EXHAUST) ---
+        const particleCount = 100;
         const particlesGeo = new THREE.BufferGeometry();
-        const particlePositions = new Float32Array(particleCount * 3);
-        const particleSpeeds = [];
+        const pPos = new Float32Array(particleCount * 3);
+        const pVel = []; // Velocity storage
         
         for(let i=0; i<particleCount; i++) {
-            particlePositions[i*3] = (Math.random() - 0.5) * 10;
-            particlePositions[i*3+1] = Math.random() * 5;
-            particlePositions[i*3+2] = (Math.random() - 0.5) * 10;
-            particleSpeeds.push({
-                y: Math.random() * 0.05,
-                x: (Math.random() - 0.5) * 0.02,
-                z: (Math.random() - 0.5) * 0.02
-            });
+            pPos[i*3] = 0; pPos[i*3+1] = 0; pPos[i*3+2] = 0;
+            pVel.push({x:0, y:0, z:0, life: 0});
         }
-        particlesGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        particlesGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        
         const particleMat = new THREE.PointsMaterial({
-            color: 0x00ffff,
-            size: 0.05,
+            color: 0x00aaff,
+            size: 0.1,
             transparent: true,
-            opacity: 0.5
+            opacity: 0,
+            blending: THREE.AdditiveBlending
         });
         const particleSystem = new THREE.Points(particlesGeo, particleMat);
         scene.add(particleSystem);
 
-
         // --- ANIMATION VARIABLES ---
         let time = 0;
-        const clock = new THREE.Clock();
-
+        const duration = 8; // Seconds for full loop
+        
         // --- ANIMATION LOOP ---
         function animate() {
             requestAnimationFrame(animate);
             
-            const delta = clock.getDelta();
-            time += delta;
+            const dt = 0.016;
+            time += dt;
+            
+            // Normalized time (0 to 1) over the loop duration
+            let t = (time % duration) / duration;
+            
+            // Animation Phases based on 't'
+            // 0.0 - 0.15: Toy Idle
+            // 0.15 - 0.4: Transform (Expand)
+            // 0.4 - 0.6: Supercar Idle (Rev)
+            // 0.6 - 0.85: Transform (Shrink)
+            // 0.85 - 1.0: Toy Idle
 
-            // Calculate Cycle (0 to 1)
-            // 0 = Start Toy, 0.5 = Full Supercar, 1 = End (Toy)
-            const cycleTime = (time % SCENE_CONFIG.loopDuration) / SCENE_CONFIG.loopDuration;
+            let morphFactor = 0;
             
-            // Use a Sine wave to smooth the transition 
-            // Map 0..1 linear to 0..1..0 smooth curve
-            let transformFactor = (Math.sin(cycleTime * Math.PI * 2 - Math.PI/2) + 1) / 2;
-            
-            // --- TRANSFORMATION LOGIC ---
+            if (t > 0.15 && t <= 0.4) {
+                morphFactor = (t - 0.15) / 0.25; // 0 to 1
+                morphFactor = easeInOutCubic(morphFactor);
+            } else if (t > 0.4 && t <= 0.6) {
+                morphFactor = 1;
+            } else if (t > 0.6 && t <= 0.85) {
+                morphFactor = 1 - ((t - 0.6) / 0.25); // 1 to 0
+                morphFactor = easeInOutCubic(morphFactor);
+            }
 
             // 1. Camera Orbit
-            const camSpeed = 0.3;
-            camera.position.x = Math.sin(time * camSpeed) * 7;
-            camera.position.z = Math.cos(time * camSpeed) * 7;
-            camera.lookAt(0, 0.5, 0);
+            const camRadius = 9 + (morphFactor * 3); // Camera pulls back as car grows
+            const camSpeed = time * 0.5;
+            camera.position.x = Math.cos(camSpeed) * camRadius;
+            camera.position.z = Math.sin(camSpeed) * camRadius;
+            camera.lookAt(0, 1 + morphFactor, 0);
 
-            // 2. Scale & Body Morph
-            // Toy Scale: 1, Supercar Scale: 1.5
-            const targetScale = 1 + (transformFactor * 0.5); 
-            carGroup.scale.set(targetScale, targetScale, targetScale);
-
-            // Elongate Chassis for Supercar look
-            chassis.scale.z = 1 + (transformFactor * 0.4); // Becomes longer
-            chassis.scale.x = 1 + (transformFactor * 0.2); // Becomes wider
-
-            // 3. Wheel Position (Wheelbase expansion)
-            const expansion = transformFactor * 0.5;
-            wheels[0].position.x = 0.8 + expansion; wheels[0].position.z = 1.0 + expansion;
-            wheels[1].position.x = -0.8 - expansion; wheels[1].position.z = 1.0 + expansion;
-            wheels[2].position.x = 0.8 + expansion; wheels[2].position.z = -1.0 - expansion;
-            wheels[3].position.x = -0.8 - expansion; wheels[3].position.z = -1.0 - expansion;
-
-            // 4. Spoiler Lift
-            spoiler.position.y = 0.26 + (transformFactor * 0.3);
-            spoiler.rotation.x = transformFactor * 0.2; // Tilt
-
-            // 5. Material Transformation (Plastic -> Chrome)
-            const colorToy = new THREE.Color(SCENE_CONFIG.toyColor);
-            const colorSuper = new THREE.Color(SCENE_CONFIG.supercarColor);
+            // 2. Material Transition (Plastic -> Chrome/Carbon)
+            paintMaterial.metalness = morphFactor; // 0 -> 1
+            paintMaterial.roughness = 0.4 - (morphFactor * 0.3); // 0.4 -> 0.1
+            paintMaterial.color.setHSL(0, 1, 0.5 - (morphFactor * 0.4)); // Red -> Dark Metallic
             
-            bodyMaterial.color.lerpColors(colorToy, colorSuper, transformFactor);
-            bodyMaterial.roughness = THREE.MathUtils.lerp(0.6, 0.05, transformFactor);
-            bodyMaterial.metalness = THREE.MathUtils.lerp(0.1, 1.0, transformFactor);
-
-            // 6. Neon Outlines & Lights
-            // Lines visible during transition, fade out at perfect states? 
-            // Let's keep them pulsating based on transform
-            neonLineMaterial.opacity = transformFactor; // More visible as it becomes "Cyber"
+            // 3. Geometry Transformation
+            const scale = 1 + morphFactor; // 1x to 2x scale
+            carGroup.scale.setScalar(scale);
             
-            // Headlights turn on past 50% transformation
-            const lightIntensity = Math.max(0, (transformFactor - 0.5) * 2);
-            headlightMat.emissiveIntensity = lightIntensity * 20;
+            // Expand Parts
+            leftPanel.position.x = -1.0 - (morphFactor * 0.3);
+            rightPanel.position.x = 1.0 + (morphFactor * 0.3);
+            spoiler.position.y = 0.3 + (morphFactor * 0.4); // Spoiler rises
+            
+            // Wheels widen
+            wheels[0].position.x = (-1 - (morphFactor * 0.4));
+            wheels[1].position.x = (1 + (morphFactor * 0.4));
+            wheels[2].position.x = (-1 - (morphFactor * 0.4));
+            wheels[3].position.x = (1 + (morphFactor * 0.4));
 
-            // 7. Exhaust / Engine Shake (Subtle vibration when full supercar)
-            if(transformFactor > 0.8) {
-                const shake = (Math.random() - 0.5) * 0.02;
-                chassis.position.x = shake;
+            // 4. Neon/Hologram Outline
+            // Flash outline at start of transformation
+            let outlineOpacity = 0;
+            if(t > 0.1 && t < 0.2) outlineOpacity = (t - 0.1) * 10; 
+            if(t >= 0.2 && t < 0.4) outlineOpacity = 1 - ((t - 0.2) * 5);
+            outlineMaterial.opacity = outlineOpacity;
+
+            // 5. Lights Glow
+            glowMaterial.opacity = morphFactor;
+
+            // 6. Exhaust Particles
+            // Only emit when full supercar (0.4 - 0.6)
+            if (morphFactor > 0.9) {
+                particleMat.opacity = 0.8;
+                updateParticles(true, scale);
+                // Slight vibration (Engine Rev)
+                carGroup.position.y = (Math.sin(time * 50) * 0.02 * scale);
             } else {
-                chassis.position.x = 0;
+                particleMat.opacity *= 0.95; // Fade out
+                updateParticles(false, scale);
+                carGroup.position.y = 0;
             }
-
-            // --- PARTICLE UPDATE ---
-            const positions = particleSystem.geometry.attributes.position.array;
-            for(let i=0; i<particleCount; i++) {
-                positions[i*3+1] += particleSpeeds[i].y; // Move up
-                // Reset if too high
-                if(positions[i*3+1] > 5) positions[i*3+1] = 0;
-                
-                // Swirl
-                positions[i*3] += Math.sin(time + i) * 0.01;
-                positions[i*3+2] += Math.cos(time + i) * 0.01;
-            }
-            particleSystem.geometry.attributes.position.needsUpdate = true;
 
             renderer.render(scene, camera);
         }
 
+        function easeInOutCubic(x) {
+            return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+        }
+
+        function updateParticles(emitting, scale) {
+            const positions = particleSystem.geometry.attributes.position.array;
+            
+            for(let i=0; i < particleCount; i++) {
+                const ix = i * 3;
+                
+                // Update physics
+                positions[ix] += pVel[i].x;
+                positions[ix+1] += pVel[i].y;
+                positions[ix+2] += pVel[i].z;
+                pVel[i].life -= 0.02;
+
+                // Reset if dead and emitting
+                if (pVel[i].life <= 0 && emitting) {
+                    positions[ix] = (Math.random() - 0.5) * 0.5 * scale; // x near center
+                    positions[ix+1] = 0.5 * scale; // y exhaust height
+                    positions[ix+2] = 2.0 * scale; // z back of car
+                    
+                    pVel[i].x = (Math.random() - 0.5) * 0.05;
+                    pVel[i].y = (Math.random() * 0.05);
+                    pVel[i].z = 0.1 + Math.random() * 0.1; // Shoot back
+                    pVel[i].life = 1.0;
+                } else if (pVel[i].life <= 0) {
+                    // Hide
+                    positions[ix+1] = -1000; 
+                }
+            }
+            particleSystem.geometry.attributes.position.needsUpdate = true;
+        }
+
         animate();
 
-
-        // --- VIDEO RECORDING LOGIC (MediaRecorder) ---
+        // --- RECORDING FUNCTIONALITY ---
         const btn = document.getElementById('record-btn');
-        let recorder;
-        let chunks = [];
-
+        
         btn.addEventListener('click', () => {
             if (btn.classList.contains('recording')) return;
 
@@ -373,54 +360,44 @@
         });
 
         function startRecording() {
-            const stream = document.querySelector('canvas').captureStream(60); // 60 FPS
-            
-            // Check supported mime types
-            let mimeType = 'video/webm;codecs=vp9';
-            if (!MediaRecorder.isTypeSupported(mimeType)) {
-                mimeType = 'video/webm;codecs=vp8'; // Fallback
-                if (!MediaRecorder.isTypeSupported(mimeType)) {
-                    mimeType = 'video/webm';
-                }
-            }
-
-            recorder = new MediaRecorder(stream, { mimeType: mimeType, videoBitsPerSecond: 5000000 });
-            
-            chunks = [];
-            recorder.ondataavailable = (e) => {
-                if (e.data.size > 0) chunks.push(e.data);
-            };
-
-            recorder.onstop = saveVideo;
-
-            recorder.start();
             btn.textContent = "Recording...";
             btn.classList.add('recording');
 
-            // Record for 6 seconds (half loop is roughly enough to see transition)
-            // Or record 1 full loop (12 seconds)
+            const canvas = document.querySelector('canvas');
+            // Capture stream at 60 FPS
+            const stream = canvas.captureStream(60);
+            
+            // Prefer VP9 for high quality, fallback to VP8
+            const mimeTypes = ['video/webm; codecs=vp9', 'video/webm; codecs=vp8', 'video/webm'];
+            let selectedMime = mimeTypes.find(mime => MediaRecorder.isTypeSupported(mime));
+
+            const recorder = new MediaRecorder(stream, {
+                mimeType: selectedMime,
+                videoBitsPerSecond: 25000000 // 25 Mbps for high quality
+            });
+
+            const chunks = [];
+            recorder.ondataavailable = e => chunks.push(e.data);
+            
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'supercar_transform.webm';
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                btn.textContent = "Download Video (15s)";
+                btn.classList.remove('recording');
+            };
+
+            recorder.start();
+
+            // Record for 15 seconds (approx 2 loops)
             setTimeout(() => {
                 recorder.stop();
-                btn.textContent = "Download Video";
-                btn.classList.remove('recording');
-            }, SCENE_CONFIG.loopDuration * 1000); // Record one full loop
-        }
-
-        function saveVideo() {
-            const blob = new Blob(chunks, { type: 'video/webm' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = 'animation.webm';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            
-            // Reset button text after brief delay
-            setTimeout(() => {
-                btn.textContent = "Download Video";
-            }, 2000);
+            }, 15000);
         }
 
         // Handle window resize
@@ -429,7 +406,6 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
-
     </script>
 </body>
 </html>
