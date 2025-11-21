@@ -5,46 +5,96 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Toy to Supercar Transformation</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050505; }
+        body { margin: 0; overflow: hidden; background-color: #050505; font-family: 'Segoe UI', sans-serif; }
         canvas { display: block; }
+        
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+
+        #record-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        #record-btn:hover {
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+        }
+
+        #record-btn.recording {
+            background: #ff3333;
+            border-color: #ff3333;
+            color: white;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 51, 51, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0); }
+        }
+
         #loading {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #00ffff; font-family: sans-serif; font-size: 1.2rem; pointer-events: none;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            pointer-events: none;
         }
     </style>
-</head>
-<body>
-
-    <div id="loading">Initializing Engine...</div>
-
+    
     <script type="importmap">
         {
             "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
             }
         }
     </script>
+</head>
+<body>
+
+    <div id="ui-container">
+        <button id="record-btn">Download Video</button>
+    </div>
+    <div id="loading">Loading Engine...</div>
 
     <script type="module">
         import * as THREE from 'three';
 
         // --- CONFIGURATION ---
-        const CONFIG = {
-            animSpeed: 0.005,
-            toyColor: 0xff0044, // Red Plastic
-            superColor: 0x111111, // Dark Carbon/Chrome
+        const SCENE_CONFIG = {
+            bgColor: 0x050505,
+            floorColor: 0x111111,
             neonColor: 0x00ffff,
-            floorColor: 0x0a0a0a
+            toyColor: 0xff3333, // Red plastic
+            supercarColor: 0x111111, // Black chrome
+            loopDuration: 12 // Seconds for full loop
         };
 
-        // --- SCENE SETUP ---
+        // --- SETUP SCENE ---
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x050505, 0.02);
+        scene.background = new THREE.Color(SCENE_CONFIG.bgColor);
+        scene.fog = new THREE.FogExp2(SCENE_CONFIG.bgColor, 0.02);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
         camera.position.set(8, 5, 8);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); // preserveDrawingBuffer needed for recorder
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -54,292 +104,332 @@
         document.getElementById('loading').style.display = 'none';
 
         // --- LIGHTING ---
-        // Cinematic Lighting Setup
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
         scene.add(ambientLight);
 
-        const mainSpot = new THREE.SpotLight(0xffffff, 20);
-        mainSpot.position.set(10, 20, 10);
-        mainSpot.angle = Math.PI / 6;
-        mainSpot.penumbra = 0.5;
-        mainSpot.castShadow = true;
-        mainSpot.shadow.mapSize.width = 2048;
-        mainSpot.shadow.mapSize.height = 2048;
-        scene.add(mainSpot);
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+        mainLight.position.set(5, 10, 5);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        scene.add(mainLight);
 
-        const blueRimLight = new THREE.PointLight(0x0088ff, 10, 20);
-        blueRimLight.position.set(-5, 2, -5);
-        scene.add(blueRimLight);
+        // Neon/Rim lights
+        const blueLight = new THREE.PointLight(0x00aaff, 2, 20);
+        blueLight.position.set(-5, 2, -5);
+        scene.add(blueLight);
 
-        const warmRimLight = new THREE.PointLight(0xffaa00, 5, 20);
-        warmRimLight.position.set(5, 2, -5);
-        scene.add(warmRimLight);
+        const pinkLight = new THREE.PointLight(0xff00aa, 2, 20);
+        pinkLight.position.set(5, 2, -5);
+        scene.add(pinkLight);
 
-        // --- MATERIALS ---
-        // We create a custom shader-like update in the loop, but start with base materials
-        const bodyMat = new THREE.MeshPhysicalMaterial({
-            color: CONFIG.toyColor,
-            roughness: 0.3, // Toy plastic
-            metalness: 0.0,
-            clearcoat: 0.5,
-            clearcoatRoughness: 0.1
+        // --- ENVIRONMENT (The Table) ---
+        const planeGeometry = new THREE.PlaneGeometry(100, 100);
+        const planeMaterial = new THREE.MeshStandardMaterial({ 
+            color: SCENE_CONFIG.floorColor,
+            roughness: 0.1,
+            metalness: 0.5
         });
-
-        const glassMat = new THREE.MeshPhysicalMaterial({
-            color: 0x111111,
-            roughness: 0.0,
-            metalness: 0.9,
-            transmission: 0.1, // slight see-through
-            transparent: true
-        });
-
-        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
-        const rimMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
-        const glowMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); // Headlights
-        const neonLineMat = new THREE.LineBasicMaterial({ color: CONFIG.neonColor, transparent: true, opacity: 0 });
-
-        // --- PROCEDURAL CAR GENERATION ---
-        const carGroup = new THREE.Group();
-        scene.add(carGroup);
-
-        // Helper to create parts with stored "Toy" and "Super" transform states
-        function createPart(geometry, material, toyState, superState) {
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            
-            // Add neon outline
-            const edges = new THREE.EdgesGeometry(geometry);
-            const line = new THREE.LineSegments(edges, neonLineMat);
-            mesh.add(line);
-
-            // Store states for interpolation
-            mesh.userData = {
-                toy: toyState,
-                super: superState,
-                isGlowing: false
-            };
-            
-            // Initialize at toy state
-            mesh.position.set(...toyState.pos);
-            mesh.scale.set(...toyState.scale);
-            
-            carGroup.add(mesh);
-            return mesh;
-        }
-
-        // 1. Main Chassis
-        const chassisGeo = new THREE.BoxGeometry(1, 1, 1);
-        const chassis = createPart(chassisGeo, bodyMat, 
-            { pos: [0, 0.6, 0], scale: [2, 0.8, 1.2] },       // Toy: Chunky
-            { pos: [0, 0.4, 0], scale: [4.5, 0.5, 1.9] }      // Super: Long, low, wide
-        );
-
-        // 2. Cabin / Roof
-        const cabinGeo = new THREE.BoxGeometry(1, 1, 1);
-        // Shift geometry center to bottom so it scales from bottom up
-        cabinGeo.translate(0, 0.5, 0); 
-        const cabin = createPart(cabinGeo, glassMat,
-            { pos: [0, 1.0, 0], scale: [1.2, 0.6, 1.0] },     // Toy: Tall bubble
-            { pos: [-0.2, 0.65, 0], scale: [2.0, 0.3, 1.6] }   // Super: Sleek, low profile
-        );
-
-        // 3. Spoiler
-        const spoilGeo = new THREE.BoxGeometry(1, 0.1, 0.3);
-        const spoiler = createPart(spoilGeo, bodyMat,
-            { pos: [-0.9, 1.1, 0], scale: [0.1, 1, 1] },      // Toy: Tiny nubs
-            { pos: [-2.1, 0.9, 0], scale: [0.5, 1, 2.0] }     // Super: Wide wing
-        );
-
-        // 4. Headlights
-        const lightGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
-        const leftLight = createPart(lightGeo, glowMat,
-            { pos: [0.9, 0.7, 0.4], scale: [1, 1, 1] },
-            { pos: [2.2, 0.4, 0.7], scale: [1, 0.5, 3] } // Angled sleek lights
-        );
-        leftLight.userData.isGlowing = true;
-
-        const rightLight = createPart(lightGeo, glowMat,
-            { pos: [0.9, 0.7, -0.4], scale: [1, 1, 1] },
-            { pos: [2.2, 0.4, -0.7], scale: [1, 0.5, 3] }
-        );
-        rightLight.userData.isGlowing = true;
-
-        // 5. Wheels (Array)
-        const wheels = [];
-        const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 32);
-        wheelGeo.rotateX(Math.PI / 2);
-        
-        function addWheel(xToy, xSuper, zDir) {
-            const w = createPart(wheelGeo, wheelMat,
-                { pos: [xToy, 0.4, zDir * 0.6], scale: [1, 1, 1] },
-                { pos: [xSuper, 0.45, zDir * 1.0], scale: [1.4, 1.4, 1.5] } // Larger, wider wheels
-            );
-            wheels.push(w);
-        }
-        addWheel(0.8, 1.4, 1);
-        addWheel(0.8, 1.4, -1);
-        addWheel(-0.8, -1.4, 1);
-        addWheel(-0.8, -1.4, -1);
-
-
-        // --- ENVIRONMENT ---
-        // Reflective Floor
-        const planeGeo = new THREE.PlaneGeometry(50, 50);
-        const planeMat = new THREE.MeshStandardMaterial({ 
-            color: CONFIG.floorColor, 
-            roughness: 0.05, 
-            metalness: 0.8 
-        });
-        const plane = new THREE.Mesh(planeGeo, planeMat);
+        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
         plane.rotation.x = -Math.PI / 2;
         plane.receiveShadow = true;
         scene.add(plane);
 
-        // Particles
-        const particleCount = 400;
-        const pGeo = new THREE.BufferGeometry();
-        const pPos = new Float32Array(particleCount * 3);
-        const pVel = []; // Store velocities
+        const grid = new THREE.GridHelper(100, 100, 0x333333, 0x111111);
+        scene.add(grid);
+
+        // --- THE CAR (PROCEDURAL MODEL) ---
+        const carGroup = new THREE.Group();
+        scene.add(carGroup);
+
+        // Materials
+        // We will mutate this material to shift from Plastic to Metal
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: SCENE_CONFIG.toyColor,
+            roughness: 0.6, // Plastic
+            metalness: 0.1
+        });
+
+        const glassMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0x000000,
+            roughness: 0.0,
+            transmission: 0.2,
+            metalness: 0.9,
+            clearcoat: 1.0
+        });
+
+        const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+        const rimMaterial = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.2 });
+        const neonLineMaterial = new THREE.LineBasicMaterial({ color: SCENE_CONFIG.neonColor, transparent: true, opacity: 0 });
         
-        for(let i=0; i<particleCount*3; i++) {
-            pPos[i] = (Math.random() - 0.5) * 5;
-            if (i % 3 === 1) pPos[i] = Math.random() * 2; // Keep Y positive
+        // Headlights (Emissive)
+        const headlightMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 0
+        });
+
+        // 1. Chassis
+        const chassisGeo = new THREE.BoxGeometry(1.5, 0.5, 3);
+        const chassis = new THREE.Mesh(chassisGeo, bodyMaterial);
+        chassis.castShadow = true;
+        chassis.position.y = 0.5;
+        carGroup.add(chassis);
+
+        // Neon Edges for Chassis
+        const edgesGeo = new THREE.EdgesGeometry(chassisGeo);
+        const chassisLines = new THREE.LineSegments(edgesGeo, neonLineMaterial);
+        chassis.add(chassisLines);
+
+        // 2. Cabin
+        const cabinGeo = new THREE.BoxGeometry(1.2, 0.4, 1.5);
+        // Make cabin look a bit more aerodynamic (tapered)
+        const positionAttribute = cabinGeo.attributes.position;
+        for ( let i = 0; i < positionAttribute.count; i ++ ) {
+            const y = positionAttribute.getY( i );
+            if ( y > 0 ) {
+                const z = positionAttribute.getZ( i );
+                // Taper the top
+                positionAttribute.setX( i, positionAttribute.getX( i ) * 0.8 );
+                // Slope the windshield
+                if(z > 0) positionAttribute.setZ(i, z * 0.6); 
+            }
         }
-        for(let i=0; i<particleCount; i++) {
-            pVel.push({
-                x: (Math.random() - 0.5) * 0.05,
-                y: Math.random() * 0.05,
-                z: (Math.random() - 0.5) * 0.05
-            });
+        cabinGeo.computeVertexNormals();
+        
+        const cabin = new THREE.Mesh(cabinGeo, glassMaterial);
+        cabin.position.set(0, 0.45, -0.2);
+        cabin.castShadow = true;
+        chassis.add(cabin);
+
+        // 3. Wheels
+        const wheels = [];
+        function createWheel(x, z) {
+            const group = new THREE.Group();
+            const tireGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.3, 32);
+            tireGeo.rotateZ(Math.PI/2);
+            const tire = new THREE.Mesh(tireGeo, wheelMaterial);
+            tire.castShadow = true;
+            
+            const rimGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.31, 16);
+            rimGeo.rotateZ(Math.PI/2);
+            const rim = new THREE.Mesh(rimGeo, rimMaterial);
+
+            group.add(tire);
+            group.add(rim);
+            group.position.set(x, 0.35, z);
+            carGroup.add(group);
+            return group;
         }
 
-        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-        const pMat = new THREE.PointsMaterial({
-            color: CONFIG.neonColor,
+        // Initial Wheel Positions (Toy Mode)
+        wheels.push(createWheel(0.8, 1.0));  // Front R
+        wheels.push(createWheel(-0.8, 1.0)); // Front L
+        wheels.push(createWheel(0.8, -1.0)); // Back R
+        wheels.push(createWheel(-0.8, -1.0)); // Back L
+
+        // 4. Headlights
+        const lightGeo = new THREE.BoxGeometry(0.3, 0.1, 0.1);
+        const headLightL = new THREE.Mesh(lightGeo, headlightMat);
+        const headLightR = new THREE.Mesh(lightGeo, headlightMat);
+        headLightL.position.set(-0.5, 0.0, 1.51);
+        headLightR.position.set(0.5, 0.0, 1.51);
+        chassis.add(headLightL);
+        chassis.add(headLightR);
+
+        // 5. Spoiler (Hidden in Toy mode, expands in Supercar mode)
+        const spoilerGeo = new THREE.BoxGeometry(1.4, 0.1, 0.4);
+        const spoiler = new THREE.Mesh(spoilerGeo, bodyMaterial);
+        spoiler.position.set(0, 0.26, -1.4);
+        chassis.add(spoiler);
+
+        // --- PARTICLES SYSTEM ---
+        const particleCount = 200;
+        const particlesGeo = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+        const particleSpeeds = [];
+        
+        for(let i=0; i<particleCount; i++) {
+            particlePositions[i*3] = (Math.random() - 0.5) * 10;
+            particlePositions[i*3+1] = Math.random() * 5;
+            particlePositions[i*3+2] = (Math.random() - 0.5) * 10;
+            particleSpeeds.push({
+                y: Math.random() * 0.05,
+                x: (Math.random() - 0.5) * 0.02,
+                z: (Math.random() - 0.5) * 0.02
+            });
+        }
+        particlesGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        const particleMat = new THREE.PointsMaterial({
+            color: 0x00ffff,
             size: 0.05,
             transparent: true,
-            opacity: 0,
-            blending: THREE.AdditiveBlending
+            opacity: 0.5
         });
-        const particles = new THREE.Points(pGeo, pMat);
-        scene.add(particles);
+        const particleSystem = new THREE.Points(particlesGeo, particleMat);
+        scene.add(particleSystem);
 
 
-        // --- ANIMATION STATE ---
+        // --- ANIMATION VARIABLES ---
         let time = 0;
-        const toyColor = new THREE.Color(CONFIG.toyColor);
-        const superColor = new THREE.Color(CONFIG.superColor);
-        const neonColor = new THREE.Color(CONFIG.neonColor);
+        const clock = new THREE.Clock();
 
-        // Lerp function helper
-        function lerp(start, end, t) {
-            return start * (1 - t) + end * t;
-        }
-
-        // --- MAIN LOOP ---
+        // --- ANIMATION LOOP ---
         function animate() {
             requestAnimationFrame(animate);
-
-            time += CONFIG.animSpeed;
             
-            // Create a smooth 0 to 1 to 0 cycle
-            // Using Sine wave adjusted to stay at 0 and 1 slightly longer
-            let rawCycle = Math.sin(time); 
-            let transformProgress = (rawCycle + 1) / 2; // 0 to 1
-            
-            // Apply easing to make it snap mechanically
-            // transformProgress = transformProgress < 0.5 ? 2 * transformProgress * transformProgress : -1 + (4 - 2 * transformProgress) * transformProgress;
+            const delta = clock.getDelta();
+            time += delta;
 
-            // --- CAMERA ORBIT ---
-            const camRadius = 6 + (transformProgress * 2); // Pull back when big
-            const camSpeed = time * 0.5;
-            camera.position.x = Math.sin(camSpeed) * camRadius;
-            camera.position.z = Math.cos(camSpeed) * camRadius;
+            // Calculate Cycle (0 to 1)
+            // 0 = Start Toy, 0.5 = Full Supercar, 1 = End (Toy)
+            const cycleTime = (time % SCENE_CONFIG.loopDuration) / SCENE_CONFIG.loopDuration;
+            
+            // Use a Sine wave to smooth the transition 
+            // Map 0..1 linear to 0..1..0 smooth curve
+            let transformFactor = (Math.sin(cycleTime * Math.PI * 2 - Math.PI/2) + 1) / 2;
+            
+            // --- TRANSFORMATION LOGIC ---
+
+            // 1. Camera Orbit
+            const camSpeed = 0.3;
+            camera.position.x = Math.sin(time * camSpeed) * 7;
+            camera.position.z = Math.cos(time * camSpeed) * 7;
             camera.lookAt(0, 0.5, 0);
 
-            // --- CAR TRANSFORMATION ---
-            carGroup.children.forEach(mesh => {
-                if (!mesh.userData.toy) return; // Skip non-parts
+            // 2. Scale & Body Morph
+            // Toy Scale: 1, Supercar Scale: 1.5
+            const targetScale = 1 + (transformFactor * 0.5); 
+            carGroup.scale.set(targetScale, targetScale, targetScale);
 
-                const start = mesh.userData.toy;
-                const end = mesh.userData.super;
+            // Elongate Chassis for Supercar look
+            chassis.scale.z = 1 + (transformFactor * 0.4); // Becomes longer
+            chassis.scale.x = 1 + (transformFactor * 0.2); // Becomes wider
 
-                // Interpolate Position
-                mesh.position.x = lerp(start.pos[0], end.pos[0], transformProgress);
-                mesh.position.y = lerp(start.pos[1], end.pos[1], transformProgress);
-                mesh.position.z = lerp(start.pos[2], end.pos[2], transformProgress);
+            // 3. Wheel Position (Wheelbase expansion)
+            const expansion = transformFactor * 0.5;
+            wheels[0].position.x = 0.8 + expansion; wheels[0].position.z = 1.0 + expansion;
+            wheels[1].position.x = -0.8 - expansion; wheels[1].position.z = 1.0 + expansion;
+            wheels[2].position.x = 0.8 + expansion; wheels[2].position.z = -1.0 - expansion;
+            wheels[3].position.x = -0.8 - expansion; wheels[3].position.z = -1.0 - expansion;
 
-                // Interpolate Scale
-                mesh.scale.x = lerp(start.scale[0], end.scale[0], transformProgress);
-                mesh.scale.y = lerp(start.scale[1], end.scale[1], transformProgress);
-                mesh.scale.z = lerp(start.scale[2], end.scale[2], transformProgress);
+            // 4. Spoiler Lift
+            spoiler.position.y = 0.26 + (transformFactor * 0.3);
+            spoiler.rotation.x = transformFactor * 0.2; // Tilt
 
-                // Handle Neon Outline
-                const line = mesh.children[0];
-                if(line) {
-                    // Pulse opacity based on transformation activity
-                    const activity = 1 - Math.abs(transformProgress - 0.5) * 2; // Peak at 0.5
-                    line.material.opacity = activity; 
-                }
-            });
+            // 5. Material Transformation (Plastic -> Chrome)
+            const colorToy = new THREE.Color(SCENE_CONFIG.toyColor);
+            const colorSuper = new THREE.Color(SCENE_CONFIG.supercarColor);
+            
+            bodyMaterial.color.lerpColors(colorToy, colorSuper, transformFactor);
+            bodyMaterial.roughness = THREE.MathUtils.lerp(0.6, 0.05, transformFactor);
+            bodyMaterial.metalness = THREE.MathUtils.lerp(0.1, 1.0, transformFactor);
 
-            // --- MATERIAL TRANSITION ---
-            // Transition from Plastic (Rough, Red) to Carbon/Chrome (Smooth, Dark)
-            bodyMat.roughness = lerp(0.4, 0.1, transformProgress);
-            bodyMat.metalness = lerp(0.0, 0.8, transformProgress);
-            bodyMat.color.lerpColors(toyColor, superColor, transformProgress * 0.1); // Slow color change
+            // 6. Neon Outlines & Lights
+            // Lines visible during transition, fade out at perfect states? 
+            // Let's keep them pulsating based on transform
+            neonLineMaterial.opacity = transformFactor; // More visible as it becomes "Cyber"
+            
+            // Headlights turn on past 50% transformation
+            const lightIntensity = Math.max(0, (transformFactor - 0.5) * 2);
+            headlightMat.emissiveIntensity = lightIntensity * 20;
 
-            // Headlights
-            if (transformProgress > 0.8) {
-                glowMat.color.setHex(0xccffff);
-                glowMat.emissiveIntensity = 2;
+            // 7. Exhaust / Engine Shake (Subtle vibration when full supercar)
+            if(transformFactor > 0.8) {
+                const shake = (Math.random() - 0.5) * 0.02;
+                chassis.position.x = shake;
             } else {
-                glowMat.color.setHex(0x555555);
+                chassis.position.x = 0;
             }
 
-            // --- PARTICLE EFFECTS ---
-            // Only show particles during the "growth" phase
-            const pPositions = particles.geometry.attributes.position.array;
-            const intensity = 1 - Math.abs(transformProgress - 0.5) * 2; // 0 at ends, 1 in middle
-            
-            pMat.opacity = intensity * 0.8;
-            
+            // --- PARTICLE UPDATE ---
+            const positions = particleSystem.geometry.attributes.position.array;
             for(let i=0; i<particleCount; i++) {
-                const idx = i * 3;
-                // Move particles
-                pPositions[idx] += pVel[i].x;
-                pPositions[idx+1] += pVel[i].y;
-                pPositions[idx+2] += pVel[i].z;
-
-                // Reset if too far or cycle restart
-                if(pPositions[idx+1] > 3 || Math.random() < 0.01) {
-                    pPositions[idx] = (Math.random() - 0.5) * (transformProgress * 4);
-                    pPositions[idx+1] = 0;
-                    pPositions[idx+2] = (Math.random() - 0.5) * (transformProgress * 4);
-                }
+                positions[i*3+1] += particleSpeeds[i].y; // Move up
+                // Reset if too high
+                if(positions[i*3+1] > 5) positions[i*3+1] = 0;
+                
+                // Swirl
+                positions[i*3] += Math.sin(time + i) * 0.01;
+                positions[i*3+2] += Math.cos(time + i) * 0.01;
             }
-            particles.geometry.attributes.position.needsUpdate = true;
-
-            // --- EXHAUST SHAKE ---
-            // When fully transformed (approx 1.0), shake the car slightly
-            if(transformProgress > 0.95) {
-                carGroup.position.y = (Math.random() - 0.5) * 0.02;
-            } else {
-                carGroup.position.y = 0;
-            }
+            particleSystem.geometry.attributes.position.needsUpdate = true;
 
             renderer.render(scene, camera);
         }
 
-        // Handle Resize
+        animate();
+
+
+        // --- VIDEO RECORDING LOGIC (MediaRecorder) ---
+        const btn = document.getElementById('record-btn');
+        let recorder;
+        let chunks = [];
+
+        btn.addEventListener('click', () => {
+            if (btn.classList.contains('recording')) return;
+
+            startRecording();
+        });
+
+        function startRecording() {
+            const stream = document.querySelector('canvas').captureStream(60); // 60 FPS
+            
+            // Check supported mime types
+            let mimeType = 'video/webm;codecs=vp9';
+            if (!MediaRecorder.isTypeSupported(mimeType)) {
+                mimeType = 'video/webm;codecs=vp8'; // Fallback
+                if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    mimeType = 'video/webm';
+                }
+            }
+
+            recorder = new MediaRecorder(stream, { mimeType: mimeType, videoBitsPerSecond: 5000000 });
+            
+            chunks = [];
+            recorder.ondataavailable = (e) => {
+                if (e.data.size > 0) chunks.push(e.data);
+            };
+
+            recorder.onstop = saveVideo;
+
+            recorder.start();
+            btn.textContent = "Recording...";
+            btn.classList.add('recording');
+
+            // Record for 6 seconds (half loop is roughly enough to see transition)
+            // Or record 1 full loop (12 seconds)
+            setTimeout(() => {
+                recorder.stop();
+                btn.textContent = "Download Video";
+                btn.classList.remove('recording');
+            }, SCENE_CONFIG.loopDuration * 1000); // Record one full loop
+        }
+
+        function saveVideo() {
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'animation.webm';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            // Reset button text after brief delay
+            setTimeout(() => {
+                btn.textContent = "Download Video";
+            }, 2000);
+        }
+
+        // Handle window resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        animate();
     </script>
 </body>
 </html>
