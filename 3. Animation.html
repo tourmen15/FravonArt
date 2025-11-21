@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paper Plane to Fighter Jet - 3D Animation</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+
+        /* Container ensures the 9:16 Aspect Ratio */
+        #canvas-container {
+            position: relative;
+            width: 56.25vh; /* 9/16 = 0.5625 */
+            height: 100vh;
+            background: #000;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.2);
+            overflow: hidden;
+        }
+
+        /* Information overlay */
+        #info {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+            font-size: 12px;
+            z-index: 10;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <div id="info">Rendering: Three.js | Procedural Generation</div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
+        import { UnrealBloomPass } from 'https://unpkg.com/three@0.158.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+        import { EffectComposer } from 'https://unpkg.com/three@0.158.0/examples/jsm/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'https://unpkg.com/three@0.158.0/examples/jsm/postprocessing/RenderPass.js';
+
+        // --- CONFIGURATION ---
+        const container = document.getElementById('canvas-container');
+        const TARGET_WIDTH = 1080;
+        const TARGET_HEIGHT = 1920;
+        
+        // --- SCENE SETUP ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000510, 0.02);
+        scene.background = new THREE.Color(0x000510);
+
+        const camera = new THREE.PerspectiveCamera(60, 9 / 16, 0.1, 1000);
+        camera.position.set(0, 3, 10);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        // --- LIGHTING ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
+
+        const engineLight = new THREE.PointLight(0xffaa00, 0, 20);
+        engineLight.position.set(0, 0, 4);
+        scene.add(engineLight);
+
+        // --- OBJECT CREATION HELPERS ---
+        
+        // 1. The Paper Plane
+        function createPaperPlane() {
+            const geometry = new THREE.BufferGeometry();
+            // Simple arrow shape vertices
+            const vertices = new Float32Array([
+                0, 0, 2,    // Tip
+                1, 0, -1,   // Right Wing
+                0, -0.5, -1,// Bottom fold
+                -1, 0, -1,  // Left Wing
+                0, 0, 2,    // Tip (Close loop)
+                0, 0.5, -1, // Top fold ridge
+                1, 0, -1    // Right Wing
+            ]);
+            
+            // Indices to form triangles
+            const indices = [
+                0, 1, 2,
+                0, 2, 3,
+                0, 4, 5,
+                5, 1, 0,
+                5, 3, 0
+            ];
+
+            geometry.setIndex(indices);
+            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            geometry.computeVertexNormals();
+
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, 
+                roughness: 0.4,
+                metalness: 0.1,
+                side: THREE.DoubleSide,
+                emissive: 0xccccff,
+                emissiveIntensity: 0.2
+            });
+
+            const plane = new THREE.Mesh(geometry, material);
+            return plane;
+        }
+
+        // 2. The Fighter Jet (Procedurally built from primitives)
+        function createFighterJet() {
+            const jetGroup = new THREE.Group();
+
+            const hullMat = new THREE.MeshStandardMaterial({ color: 0x334455, roughness: 0.3, metalness: 0.8 });
+            const wingMat = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.3, metalness: 0.8 });
+            const cockpitMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x0044ff, opacity: 0.7, transparent: true });
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true });
+
+            // Fuselage
+            const fuselageGeom = new THREE.ConeGeometry(0.5, 4, 8);
+            fuselageGeom.rotateX(Math.PI / 2);
+            const fuselage = new THREE.Mesh(fuselageGeom, hullMat);
+            jetGroup.add(fuselage);
+
+            // Cockpit
+            const cockpitGeom = new THREE.CapsuleGeometry(0.3, 1, 4, 8);
+            cockpitGeom.rotateX(Math.PI / 2);
+            const cockpit = new THREE.Mesh(cockpitGeom, cockpitMat);
+            cockpit.position.set(0, 0.3, 0.5);
+            jetGroup.add(cockpit);
+
+            // Wings (Delta shape using custom shape)
+            const shape = new THREE.Shape();
+            shape.moveTo(0, 0);
+            shape.lineTo(2, -1.5);
+            shape.lineTo(0, -0.5);
+            shape.lineTo(-2, -1.5);
+            shape.lineTo(0, 0);
+            
+            const extrudeSettings = { depth: 0.1, bevelEnabled: false };
+            const wingGeom = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            wingGeom.rotateX(Math.PI / 2);
+            const wings = new THREE.Mesh(wingGeom, wingMat);
+            wings.position.set(0, 0, 0);
+            jetGroup.add(wings);
+
+            // Vertical Stabilizers
+            const tailGeom = new THREE.BoxGeometry(0.1, 0.8, 1);
+            const tail = new THREE.Mesh(tailGeom, wingMat);
+            tail.position.set(0, 0.5, -1.5);
+            tail.rotation.x = Math.PI / 4;
+            jetGroup.add(tail);
+
+            // Engines (Glowing)
+            const engineGeom = new THREE.CylinderGeometry(0.2, 0.1, 0.5, 8);
+            engineGeom.rotateX(Math.PI / 2);
+            const leftEngine = new THREE.Mesh(engineGeom, hullMat);
+            leftEngine.position.set(0.6, 0, -1.8);
+            const rightEngine = new THREE.Mesh(engineGeom, hullMat);
+            rightEngine.position.set(-0.6, 0, -1.8);
+            jetGroup.add(leftEngine);
+            jetGroup.add(rightEngine);
+
+            // Afterburner Glow
+            const burnerGeom = new THREE.ConeGeometry(0.15, 1, 8);
+            burnerGeom.rotateX(-Math.PI / 2);
+            const burnerMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.8 });
+            const leftBurner = new THREE.Mesh(burnerGeom, burnerMat);
+            leftBurner.position.set(0.6, 0, -2.2);
+            const rightBurner = new THREE.Mesh(burnerGeom, burnerMat);
+            rightBurner.position.set(-0.6, 0, -2.2);
+            jetGroup.add(leftBurner);
+            jetGroup.add(rightBurner);
+
+            // Wireframe overlay for "Tech" look
+            const wireframe = new THREE.LineSegments(
+                new THREE.WireframeGeometry(wingGeom),
+                new THREE.LineBasicMaterial({ color: 0x00ccff, opacity: 0.1, transparent: true })
+            );
+            wireframe.rotation.x = Math.PI/2;
+            jetGroup.add(wireframe);
+
+            jetGroup.rotation.y = Math.PI; // Face forward
+            return jetGroup;
+        }
+
+        // 3. Moving Grid (Synthwave Ground)
+        function createGrid() {
+            const gridHelper = new THREE.GridHelper(40, 40, 0x00ffff, 0x220044);
+            gridHelper.position.y = -2;
+            return gridHelper;
+        }
+
+        // 4. Particle Stars
+        function createParticles() {
+            const geom = new THREE.BufferGeometry();
+            const count = 500;
+            const positions = new Float32Array(count * 3);
+            for(let i=0; i<count*3; i++) {
+                positions[i] = (Math.random() - 0.5) * 40;
+            }
+            geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.05 });
+            return new THREE.Points(geom, mat);
+        }
+
+        // --- ASSEMBLY ---
+        const paperPlane = createPaperPlane();
+        scene.add(paperPlane);
+
+        const fighterJet = createFighterJet();
+        fighterJet.visible = false; // Hidden initially
+        scene.add(fighterJet);
+
+        const grid = createGrid();
+        scene.add(grid);
+
+        const particles = createParticles();
+        scene.add(particles);
+
+        // --- POST PROCESSING (BLOOM) ---
+        const composer = new EffectComposer(renderer);
+        const renderPass = new RenderPass(scene, camera);
+        composer.addPass(renderPass);
+
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        bloomPass.threshold = 0;
+        bloomPass.strength = 1.2; // Intense glow
+        bloomPass.radius = 0;
+        composer.addPass(bloomPass);
+
+        // --- ANIMATION LOGIC ---
+        let time = 0;
+        let state = 'plane'; // 'plane', 'transform', 'jet'
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            time += 0.016; // Approx 60fps step
+
+            // 1. Move Environment (Speed Effect)
+            grid.position.z = (time * 10) % 2; 
+            particles.position.z += 0.2;
+            if(particles.position.z > 5) particles.position.z = 0;
+
+            // 2. Camera subtle movement
+            camera.position.x = Math.sin(time * 0.5) * 0.5;
+            camera.rotation.z = Math.sin(time * 0.5) * 0.05;
+
+            // 3. Sequence Logic
+            const cycleDuration = 8; // seconds per loop
+            const localTime = time % cycleDuration;
+
+            if (localTime < 3) {
+                // STATE: PAPER PLANE
+                state = 'plane';
+                paperPlane.visible = true;
+                fighterJet.visible = false;
+                
+                // Float animation
+                paperPlane.position.y = Math.sin(time * 2) * 0.2;
+                paperPlane.rotation.z = Math.sin(time * 1) * 0.2;
+                paperPlane.rotation.x = 0;
+                paperPlane.scale.set(1, 1, 1);
+                engineLight.intensity = 0;
+
+            } else if (localTime >= 3 && localTime < 4) {
+                // STATE: TRANSFORMATION
+                state = 'transform';
+                
+                const t = (localTime - 3) / 1; // 0 to 1 progress
+                
+                // Spin fast
+                paperPlane.rotation.z += 0.5;
+                paperPlane.scale.setScalar(1 - t); // Shrink
+                
+                if (t > 0.5) {
+                    paperPlane.visible = false;
+                    fighterJet.visible = true;
+                    fighterJet.scale.setScalar(t); // Grow
+                    fighterJet.rotation.z = (1-t) * Math.PI * 4; // Spin out
+                    engineLight.intensity = t * 5;
+                }
+
+            } else if (localTime >= 4 && localTime < 7.5) {
+                // STATE: FIGHTER JET
+                state = 'jet';
+                fighterJet.scale.setScalar(1);
+                fighterJet.position.y = Math.sin(time * 5) * 0.1; // Vibration
+                
+                // Bank turn
+                fighterJet.rotation.z = Math.sin(time) * 0.5;
+                
+                // Engine flicker
+                engineLight.intensity = 2 + Math.random();
+
+            } else {
+                // STATE: RESET
+                // Quick fade out/reset logic
+                fighterJet.position.z -= 0.5;
+            }
+
+            // Reset positions for loop
+            if(localTime < 0.1) {
+                fighterJet.position.set(0,0,0);
+                paperPlane.position.set(0,0,0);
+            }
+
+            composer.render();
+        }
+
+        // Handle Resize
+        window.addEventListener('resize', () => {
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            bloomPass.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
